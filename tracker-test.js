@@ -27,7 +27,10 @@ class PepuTracker extends HTMLElement {
           font-family: 'Raleway', sans-serif;
         }
 
-        .pepu-card.pepu-main { background: #039112; color: #fff; }
+        .pepu-card.pepu-main {
+          background: #039112;
+          color: #fff;
+        }
 
         .pepu-card.total-card {
           background: #000;
@@ -62,7 +65,9 @@ class PepuTracker extends HTMLElement {
           font-family: 'Raleway', sans-serif;
         }
 
-        .pepu-card .price.bold { font-weight: bold; }
+        .pepu-card .price.bold {
+          font-weight: bold;
+        }
 
         .pepu-button {
           padding: 10px 20px;
@@ -94,10 +99,7 @@ class PepuTracker extends HTMLElement {
         .pepu-loading, .pepu-notokens { color: white; font-size: 20px; }
         .pepu-error { color: red; font-size: 18px; }
 
-        .wallet-container {
-          position: relative;
-        }
-
+        .wallet-container { position: relative; }
         #walletInput {
           width: 100%;
           padding: 10px;
@@ -241,15 +243,14 @@ class PepuTracker extends HTMLElement {
       dropdown.style.display = "none";
       resultDiv.innerHTML = `<p class="pepu-loading">Loading portfolio...</p>`;
 
-      const portfolioUrl = `https://pepu-portfolio-tracker-test.onrender.com/portfolio?wallet=${wallet}`;
-      const lpUrl = `https://pepu-portfolio-tracker-test.onrender.com/lp-positions?wallet=${wallet}`;
-      const presaleUrl = `https://pepu-portfolio-tracker-test.onrender.com/presales?wallet=${wallet}`;
+      const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
+      const endpoints = [
+        fetch(`${baseUrl}/portfolio?wallet=${wallet}`).then(res => res.json()),
+        fetch(`${baseUrl}/lp-positions?wallet=${wallet}`).then(res => res.json()),
+        fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json()),
+      ];
 
-      Promise.all([
-        fetch(portfolioUrl).then(res => res.json()),
-        fetch(lpUrl).then(res => res.json()),
-        fetch(presaleUrl).then(res => res.json())
-      ]).then(([portfolio, lps, presales]) => {
+      Promise.all(endpoints).then(([portfolio, lps, presales]) => {
         let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(portfolio.total_value_usd + lps.total_value_usd)}</div>`;
         html += `<div class="pepu-card-container">`;
 
@@ -289,7 +290,7 @@ class PepuTracker extends HTMLElement {
 
         html += `</div>`;
 
-        if (lps.lp_positions.length > 0) {
+        if (lps.lp_positions && lps.lp_positions.length > 0) {
           html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
           lps.lp_positions.forEach(lp => {
             const totalUsd = lp.amount0_usd + lp.amount1_usd;
@@ -311,33 +312,36 @@ class PepuTracker extends HTMLElement {
           html += `</div>`;
         }
 
-        if (presales.pesw) {
-          const p = presales.pesw;
-          const total = (p.deposited_tokens + p.staked_tokens + p.pending_rewards) * p.current_price_usd;
-          const totalLaunch = (p.deposited_tokens + p.staked_tokens + p.pending_rewards) * p.launch_price_usd;
-
+        const presaleData = presales.pesw;
+        if (presaleData) {
           html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
+
+          const total = (presaleData.deposited_tokens + presaleData.staked_tokens + presaleData.pending_rewards);
+          const totalUsd = total * presaleData.current_price_usd;
+          const launchUsd = total * presaleData.launch_price_usd;
+
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
-                <img src="https://placehold.co/32x32" width="32" height="32" />
-                <div class="name">PESW Presale</div>
+                <img src="${presaleData.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
+                <strong class="name">PESW Presale</strong>
               </div>
-              <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
-              <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
-              <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
-              <div class="amount">Current price: ${formatPrice(p.current_price_usd)}</div>
-              <div class="amount">Launch price: ${formatPrice(p.launch_price_usd)}</div>
-              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(total)}</div>
-              <div class="price">Total at launch: ${formatUSD(totalLaunch)}</div>
-            </div>`;
-          html += `</div>`;
+              <div class="amount">Amount: ${formatAmount(presaleData.deposited_tokens)}</div>
+              <div class="amount">Staked: ${formatAmount(presaleData.staked_tokens)}</div>
+              <div class="amount">Rewards: ${formatAmount(presaleData.pending_rewards)}</div>
+              <div class="price">Current Price: ${formatPrice(presaleData.current_price_usd)}</div>
+              <div class="price">Launch Price: ${formatPrice(presaleData.launch_price_usd)}</div>
+              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(totalUsd)}</div>
+              <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
+            </div>
+          </div>`;
         }
 
         resultDiv.innerHTML = html;
-      }).catch(err => {
-        console.error(err);
+      })
+      .catch(err => {
         resultDiv.innerHTML = `<p class="pepu-error">Failed to fetch data. Please try again later.</p>`;
+        console.error(err);
       });
     };
   }
