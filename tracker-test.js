@@ -313,13 +313,17 @@ class PepuTracker extends HTMLElement {
         }
 
         const presaleData = presales.pesw;
-        if (presaleData) {
+        if (presaleData && (
+            presaleData.deposited_tokens > 0 ||
+            presaleData.staked_tokens > 0 ||
+            presaleData.pending_rewards > 0
+        )) {
           html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
-
-          const total = (presaleData.deposited_tokens + presaleData.staked_tokens + presaleData.pending_rewards);
+        
+          const total = presaleData.deposited_tokens + presaleData.staked_tokens + presaleData.pending_rewards;
           const totalUsd = total * presaleData.current_price_usd;
           const launchUsd = total * presaleData.launch_price_usd;
-
+        
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
