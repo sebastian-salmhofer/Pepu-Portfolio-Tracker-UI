@@ -52,65 +52,9 @@ class PepuTracker extends HTMLElement {
           margin-bottom: 20px;
         }
 
-        .pepu-token-header {
-          display: flex;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .pepu-token-header img {
-          margin-right: 10px;
-          border-radius: 4px;
-        }
-
-        .pepu-token-header .name {
-          font-family: 'Poppins', sans-serif;
-          font-size: 17px;
-          font-weight: 600;
-        }
-
-        .pepu-card .price,
-        .pepu-card .amount {
-          font-size: 15px;
-          font-family: 'Raleway', sans-serif;
-        }
-
-        .pepu-card .price.bold {
-          font-weight: bold;
-        }
-
-        .pepu-button {
-          padding: 10px 20px;
-          font-size: 16px;
-          border-radius: 15px;
-          border: 2px solid #000;
-          background-color: #039112;
-          color: white;
-          cursor: pointer;
-          transition: background-color 0.3s ease;
-          margin-top: 15px;
-          display: block;
-        }
-
-        .pepu-button:hover {
-          background-color: #F1BC4A;
-          color: #000;
-        }
-
-        .pepu-loading,
-        .pepu-notokens,
-        .pepu-error {
-          text-align: center;
-          font-family: 'Poppins', sans-serif;
-          font-weight: 600;
-          margin-top: 20px;
-        }
-
-        .pepu-loading, .pepu-notokens { color: white; font-size: 20px; }
-        .pepu-error { color: red; font-size: 18px; }
-
         .wallet-container {
           position: relative;
+          margin-bottom: 10px;
         }
 
         #walletInput {
@@ -143,6 +87,36 @@ class PepuTracker extends HTMLElement {
 
         .wallet-dropdown div:hover {
           background: #eee;
+        }
+
+        .filter-row {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+          margin-top: 10px;
+        }
+
+        .filter-row label {
+          font-family: 'Raleway', sans-serif;
+          font-size: 15px;
+          color: #000;
+        }
+
+        .pepu-button {
+          padding: 10px 20px;
+          font-size: 16px;
+          border-radius: 15px;
+          border: 2px solid #000;
+          background-color: #039112;
+          color: white;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+        }
+
+        .pepu-button:hover {
+          background-color: #F1BC4A;
+          color: #000;
         }
 
         .lp-title {
@@ -185,9 +159,46 @@ class PepuTracker extends HTMLElement {
           text-align: center;
         }
 
+        .pepu-token-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .pepu-token-header img {
+          margin-right: 10px;
+          border-radius: 4px;
+        }
+
+        .pepu-token-header .name {
+          font-family: 'Poppins', sans-serif;
+          font-size: 17px;
+          font-weight: 600;
+        }
+
+        .pepu-card .price,
+        .pepu-card .amount {
+          font-size: 15px;
+        }
+
+        .pepu-card .price.bold {
+          font-weight: bold;
+        }
+
+        .pepu-loading, .pepu-error {
+          text-align: center;
+          margin-top: 20px;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+        }
+
+        .pepu-loading { color: white; font-size: 20px; }
+        .pepu-error { color: red; font-size: 18px; }
+
         @media (max-width: 700px) {
-          .pepu-card {
-            flex: 1 1 100%;
+          .filter-row {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
       </style>
@@ -198,7 +209,12 @@ class PepuTracker extends HTMLElement {
             <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
             <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
           </div>
-          <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
+          <div class="filter-row">
+            <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
+            <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
+            <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
+            <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
+          </div>
         </div>
         <div id="result"></div>
       </div>
@@ -210,6 +226,9 @@ class PepuTracker extends HTMLElement {
     const dropdown = this.querySelector("#walletDropdown");
     const fetchBtn = this.querySelector("#fetchBtn");
     const resultDiv = this.querySelector("#result");
+    const hideSmall = this.querySelector("#hideSmall");
+    const hideLPs = this.querySelector("#hideLPs");
+    const hidePresales = this.querySelector("#hidePresales");
 
     const savedWallets = JSON.parse(localStorage.getItem("pepu_wallets") || "[]");
 
@@ -268,8 +287,15 @@ class PepuTracker extends HTMLElement {
       ];
 
       Promise.all(endpoints).then(([portfolio, lps, presales]) => {
-        let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(portfolio.total_value_usd + lps.total_value_usd)}</div>`;
-        html += `<div class="pepu-card-container">`;
+        let total = portfolio.total_value_usd;
+
+        const hideSmallBalances = hideSmall.checked;
+        const hideLP = hideLPs.checked;
+        const hidePresale = hidePresales.checked;
+
+        if (!hideLP) total += lps.total_value_usd;
+
+        let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(total)}</div><div class="pepu-card-container">`;
 
         const renderCard = (label, item) => `
           <div class="pepu-card pepu-main">
@@ -288,6 +314,12 @@ class PepuTracker extends HTMLElement {
         html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
 
         portfolio.tokens.forEach(token => {
+          if (hideSmall.checked && (
+            (token.total_usd > 0 && token.total_usd < 1) ||
+            (token.total_usd === 0 && token.amount <= 1) ||
+            (token.warning && token.warning.toLowerCase().includes("low liquidity"))
+          )) return;
+
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
@@ -307,7 +339,7 @@ class PepuTracker extends HTMLElement {
 
         html += `</div>`;
 
-        if (lps.lp_positions.length > 0) {
+        if (!hideLP && lps.lp_positions.length > 0) {
           html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
           lps.lp_positions.forEach(lp => {
             const totalUsd = lp.amount0_usd + lp.amount1_usd;
@@ -329,40 +361,31 @@ class PepuTracker extends HTMLElement {
           html += `</div>`;
         }
 
-        const presaleData = presales.pesw;
-        if (presaleData && (
-            presaleData.deposited_tokens > 0 ||
-            presaleData.staked_tokens > 0 ||
-            presaleData.pending_rewards > 0
-        )) {
+        const p = presales.pesw;
+        if (!hidePresale && p && (p.deposited_tokens > 0 || p.staked_tokens > 0 || p.pending_rewards > 0)) {
+          const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
+          const currentUsd = totalTokens * p.current_price_usd;
+          const launchUsd = totalTokens * p.launch_price_usd;
+
           html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
-
-          const total = presaleData.deposited_tokens + presaleData.staked_tokens + presaleData.pending_rewards;
-          const totalUsd = total * presaleData.current_price_usd;
-          const launchUsd = total * presaleData.launch_price_usd;
-
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
-                <img src="${presaleData.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
+                <img src="${p.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
                 <strong class="name">PESW Presale</strong>
               </div>
-              <div class="amount">Amount: ${formatAmount(presaleData.deposited_tokens)}</div>
-              <div class="amount">Staked: ${formatAmount(presaleData.staked_tokens)}</div>
-              <div class="amount">Rewards: ${formatAmount(presaleData.pending_rewards)}</div>
-              <div class="price">Current Price: ${formatPrice(presaleData.current_price_usd)}</div>
-              <div class="price">Launch Price: ${formatPrice(presaleData.launch_price_usd)}</div>
-              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(totalUsd)}</div>
+              <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
+              <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
+              <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
+              <div class="price">Current Price: ${formatPrice(p.current_price_usd)}</div>
+              <div class="price">Launch Price: ${formatPrice(p.launch_price_usd)}</div>
+              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(currentUsd)}</div>
               <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
             </div>
           </div>`;
         }
 
         resultDiv.innerHTML = html;
-      })
-      .catch(err => {
-        resultDiv.innerHTML = `<p class="pepu-error">Failed to fetch data. Please try again later.</p>`;
-        console.error(err);
       });
     };
   }
