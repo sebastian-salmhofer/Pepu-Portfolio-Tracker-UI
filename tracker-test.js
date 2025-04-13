@@ -244,6 +244,54 @@ class PepuTracker extends HTMLElement {
         </div>`;
     };
 
+    // Fetch and display presales
+  fetch(`https://pepu-portfolio-tracker.onrender.com/presales?wallet=${wallet}`)
+    .then(res => res.json())
+    .then(presaleData => {
+      const presales = presaleData.pesw ? [presaleData.pesw] : [];
+      if (presales.length > 0) {
+        html += `<div class="lp-title">Token Presales</div>`;
+        html += `<div class="pepu-card-container">`;
+  
+        presales.forEach(p => {
+          const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
+          const totalNow = p.current_price_usd ? totalTokens * p.current_price_usd : 0;
+          const totalLaunch = p.launch_price_usd ? totalTokens * p.launch_price_usd : 0;
+  
+          html += `
+            <div class="pepu-card">
+              <div class="pepu-token-header">
+                <img src="https://placehold.co/32x32" width="32" height="32" />
+                <strong class="name">PESW Presale</strong>
+              </div>
+              <div class="lp-row">
+                <div class="lp-tokens">
+                  <div class="lp-token">Amount: ${formatAmount(p.deposited_tokens)}</div>
+                  <div class="lp-token">Staked: ${formatAmount(p.staked_tokens)}</div>
+                  <div class="lp-token">Rewards: ${formatAmount(p.pending_rewards)}</div>
+                  <div class="lp-token">Current price: ${formatPrice(p.current_price_usd)}</div>
+                  <div class="lp-token">Launch price: ${formatPrice(p.launch_price_usd)}</div>
+                </div>
+                <div class="lp-total">
+                  <div>
+                    <div>Total: ${formatUSD(totalNow)}</div>
+                    <div style="font-weight: normal; font-size: 14px;">Total at launch: ${formatUSD(totalLaunch)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        });
+  
+        html += `</div>`;
+      }
+  
+      resultDiv.innerHTML = html;
+    })
+    .catch((err) => {
+      console.error("Failed to load presales:", err);
+    });
+
+
     const updateDropdown = () => {
       dropdown.innerHTML = "";
       if (savedWallets.length === 0) return dropdown.style.display = "none";
