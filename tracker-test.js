@@ -9,6 +9,19 @@ class PepuTracker extends HTMLElement {
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Raleway:wght@400&display=swap');
 
+        .input-card {
+          background: rgba(255, 255, 255, 0.15);
+          border: 3px solid #F1BC4A;
+          border-radius: 15px;
+          padding: 20px;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          box-sizing: border-box;
+          margin-bottom: 20px;
+          color: white;
+          font-family: 'Raleway', sans-serif;
+        }
+        
         .pepu-card-container {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -177,13 +190,12 @@ class PepuTracker extends HTMLElement {
         }
       </style>
 
-      <div id="pepu-app" style="max-width: 1000px; margin: auto;">
+      <div class="input-card">
         <div class="wallet-container">
           <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
           <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
         </div>
         <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
-        <div id="result" style="margin-top:20px;"></div>
       </div>
     `;
   }
