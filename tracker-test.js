@@ -52,6 +52,32 @@ class PepuTracker extends HTMLElement {
           margin-bottom: 20px;
         }
 
+        .pepu-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 15px;
+          margin-top: 15px;
+          align-items: center;
+        }
+        
+        .pepu-filters label {
+          color: white;
+          font-weight: bold;
+          font-size: 16px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-family: 'Raleway', sans-serif;
+          padding-bottom: 14px; /* 🔧 Aligns label text better with button */
+        }
+        
+        .pepu-filters input[type="checkbox"] {
+          accent-color: #F1BC4A;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+
         .wallet-container {
           position: relative;
           margin-bottom: 10px;
@@ -209,11 +235,13 @@ class PepuTracker extends HTMLElement {
             <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
             <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
           </div>
-          <div class="filter-row">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
             <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
-            <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
-            <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
-            <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
+            <div class="pepu-filters">
+              <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
+              <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
+              <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
+            </div>
           </div>
         </div>
         <div id="result"></div>
@@ -293,7 +321,8 @@ class PepuTracker extends HTMLElement {
         const hideLP = hideLPs.checked;
         const hidePresale = hidePresales.checked;
 
-        if (!hideLP) total += lps.total_value_usd;
+        if (!hideLP) total += lps.total_value_usd || 0;
+        if (!hidePresale) total += presales.total_value_usd || 0;
 
         let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(total)}</div><div class="pepu-card-container">`;
 
