@@ -9,19 +9,6 @@ class PepuTracker extends HTMLElement {
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Raleway:wght@400&display=swap');
 
-        .input-card {
-          background: rgba(255, 255, 255, 0.15);
-          border: 3px solid #F1BC4A;
-          border-radius: 15px;
-          padding: 20px;
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          box-sizing: border-box;
-          margin-bottom: 20px;
-          color: white;
-          font-family: 'Raleway', sans-serif;
-        }
-        
         .pepu-card-container {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -53,6 +40,16 @@ class PepuTracker extends HTMLElement {
           font-weight: bold;
           text-align: center;
           margin-bottom: 30px;
+        }
+
+        .pepu-card.input-card {
+          background: rgba(255, 255, 255, 0.15);
+          border: 3px solid #F1BC4A;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          color: #000;
+          font-family: 'Raleway', sans-serif;
+          margin-bottom: 20px;
         }
 
         .pepu-token-header {
@@ -91,7 +88,7 @@ class PepuTracker extends HTMLElement {
           color: white;
           cursor: pointer;
           transition: background-color 0.3s ease;
-          margin: 15px auto 0;
+          margin-top: 15px;
           display: block;
         }
 
@@ -112,15 +109,18 @@ class PepuTracker extends HTMLElement {
         .pepu-loading, .pepu-notokens { color: white; font-size: 20px; }
         .pepu-error { color: red; font-size: 18px; }
 
-        .wallet-container { position: relative; }
+        .wallet-container {
+          position: relative;
+        }
+
         #walletInput {
           width: 100%;
           padding: 10px;
-          margin-top: 10px;
           border-radius: 5px;
           border: 1px solid #ccc;
           font-size: 16px;
           font-family: 'Raleway', sans-serif;
+          background-color: white;
         }
 
         .wallet-dropdown {
@@ -132,11 +132,13 @@ class PepuTracker extends HTMLElement {
           border: 1px solid #ccc;
           border-top: none;
           z-index: 10;
+          font-family: 'Raleway', sans-serif;
         }
 
         .wallet-dropdown div {
           padding: 10px;
           cursor: pointer;
+          color: black;
         }
 
         .wallet-dropdown div:hover {
@@ -190,12 +192,15 @@ class PepuTracker extends HTMLElement {
         }
       </style>
 
-      <div class="input-card">
-        <div class="wallet-container">
-          <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
-          <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
+      <div id="pepu-app" style="max-width: 1000px; margin: auto;">
+        <div class="pepu-card input-card">
+          <div class="wallet-container">
+            <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
+            <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
+          </div>
+          <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
         </div>
-        <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
+        <div id="result"></div>
       </div>
     `;
   }
@@ -302,7 +307,7 @@ class PepuTracker extends HTMLElement {
 
         html += `</div>`;
 
-        if (lps.lp_positions && lps.lp_positions.length > 0) {
+        if (lps.lp_positions.length > 0) {
           html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
           lps.lp_positions.forEach(lp => {
             const totalUsd = lp.amount0_usd + lp.amount1_usd;
@@ -331,11 +336,11 @@ class PepuTracker extends HTMLElement {
             presaleData.pending_rewards > 0
         )) {
           html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
-        
+
           const total = presaleData.deposited_tokens + presaleData.staked_tokens + presaleData.pending_rewards;
           const totalUsd = total * presaleData.current_price_usd;
           const launchUsd = total * presaleData.launch_price_usd;
-        
+
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
