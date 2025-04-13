@@ -265,47 +265,99 @@ class PepuTracker extends HTMLElement {
       if (!this.contains(e.target)) dropdown.style.display = "none";
     });
 
-    fetchBtn.onclick = () => {
-      const wallet = walletInput.value.trim();
-      if (!wallet.startsWith("0x") || wallet.length !== 42) {
-        return resultDiv.innerHTML = `<p class="pepu-error">Please enter a valid wallet address.</p>`;
-      }
-
-      if (!savedWallets.includes(wallet)) {
-        savedWallets.unshift(wallet);
-        localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
-      }
-
-      resultDiv.innerHTML = `<p class="pepu-loading">Loading portfolio...</p>`;
-      dropdown.style.display = "none";
-
-      fetch(`https://pepu-portfolio-tracker.onrender.com/portfolio?wallet=${wallet}`)
-        .then((res) => res.json())
-        .then((data) => {
-          let html = `
-            <div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(data.total_value_usd)}</div>
-            <div class="pepu-card-container">
-              ${renderTokenCard({ ...data.native_pepu, name: "Wallet PEPU", symbol: "PEPU", icon_url: data.native_pepu.icon })}
-              ${renderTokenCard({ ...data.staked_pepu, name: "Staked PEPU", symbol: "PEPU", icon_url: data.staked_pepu.icon })}
-              ${renderTokenCard({ ...data.unclaimed_rewards, name: "Unclaimed Rewards", symbol: "PEPU", icon_url: data.unclaimed_rewards.icon })}
+  fetchBtn.onclick = () => {
+    const wallet = walletInput.value.trim();
+    if (!wallet.startsWith("0x") || wallet.length !== 42) {
+      resultDiv.innerHTML = `<p class="pepu-error">Please enter a valid wallet address.</p>`;
+      return;
+    }
+  
+    if (!savedWallets.includes(wallet)) {
+      savedWallets.unshift(wallet);
+      localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
+    }
+  
+    dropdown.style.display = "none";
+    resultDiv.innerHTML = `<p class="pepu-loading">Loading portfolio...</p>`;
+  
+    const portfolioUrl = `https://pepu-portfolio-tracker-test.onrender.com/portfolio?wallet=${wallet}`;
+    const lpUrl = `https://pepu-portfolio-tracker-test.onrender.com/lp-positions?wallet=${wallet}`;
+  
+    Promise.all([fetch(portfolioUrl), fetch(lpUrl)])
+      .then(([res1, res2]) => Promise.all([res1.json(), res2.json()]))
+      .then(([portfolio, lps]) => {
+        let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(portfolio.total_value_usd + lps.total_value_usd)}</div>`;
+        html += `<div class="pepu-card-container">`;
+  
+        const renderCard = (label, item) => `
+          <div class="pepu-card pepu-main">
+            <div class="pepu-token-header">
+              <img src="${item.icon}" width="40" height="40" />
+              <div class="name">${label}</div>
             </div>
-            <div class="pepu-card-container" style="margin-top:30px;">
-              ${data.tokens.map(renderTokenCard).join("")}
+            <div class="amount">Amount: ${formatAmount(item.amount)}</div>
+            <div class="price">Price: ${formatPrice(item.price_usd)}</div>
+            <div class="price bold">Total: ${formatUSD(item.total_usd)}</div>
+          </div>`;
+  
+        html += renderCard("Wallet PEPU", portfolio.native_pepu);
+        html += renderCard("Staked PEPU", portfolio.staked_pepu);
+        html += renderCard("Unclaimed Rewards", portfolio.unclaimed_rewards);
+        html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
+  
+        portfolio.tokens.forEach((token) => {
+          html += `
+            <div class="pepu-card">
+              <div class="pepu-token-header">
+                <img src="${token.icon_url}" width="32" height="32" />
+                <strong class="name">
+                  <a href="https://www.geckoterminal.com/pepe-unchained/pools/${token.contract}" target="_blank" style="text-decoration:none;color:#000;">
+                    ${token.name} (${token.symbol})
+                  </a>
+                </strong>
+              </div>
+              <div class="amount">Amount: ${formatAmount(token.amount)}</div>
+              <div class="price">Price: ${formatPrice(token.price_usd)}</div>
+              <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
+              ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
             </div>`;
-
-          if (data.lp_positions.length) {
-            html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
-            html += data.lp_positions.map(renderLPCard).join("");
-            html += `</div>`;
-          }
-
-          resultDiv.innerHTML = html;
-        })
-        .catch((err) => {
-          resultDiv.innerHTML = `<p class="pepu-error">Failed to fetch data. Please try again later.</p>`;
-          console.error(err);
         });
-    };
+  
+        html += `</div>`;
+  
+        if (lps.lp_positions && lps.lp_positions.length > 0) {
+          html += `<div class="lp-title">Liquidity Pool Positions</div>`;
+          html += `<div class="pepu-card-container">`;
+  
+          lps.lp_positions.forEach((lp) => {
+            const totalUsd = lp.amount0_usd + lp.amount1_usd;
+  
+            html += `
+              <div class="pepu-card">
+                <div class="pepu-token-header" style="justify-content:center;">
+                  <div class="name">${lp.lp_name}</div>
+                </div>
+                <div class="lp-row">
+                  <div class="lp-tokens">
+                    <div class="lp-token"><img src="${lp.token0_icon}" /> ${lp.symbol0}: ${formatAmount(lp.amount0)}</div>
+                    <div class="lp-token"><img src="${lp.token1_icon}" /> ${lp.symbol1}: ${formatAmount(lp.amount1)}</div>
+                  </div>
+                  <div class="lp-total">Total: ${formatUSD(totalUsd)}</div>
+                </div>
+                ${lp.warning ? `<div style="color:red; margin-top: 6px;">⚠️ ${lp.warning}</div>` : ""}
+              </div>`;
+          });
+  
+          html += `</div>`;
+        }
+  
+        resultDiv.innerHTML = html;
+      })
+      .catch((err) => {
+        resultDiv.innerHTML = `<p class="pepu-error">Failed to fetch data. Please try again later.</p>`;
+        console.error(err);
+      });
+  };
   }
 }
 
