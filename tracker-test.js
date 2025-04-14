@@ -395,6 +395,21 @@ class PepuTracker extends HTMLElement {
         }
       }
 
+      .pepu-spinner {
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid #F1BC4A;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        animation: spin 0.8s linear infinite;
+        margin: auto;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
       @media (max-width: 700px) {
         .filter-row {
           flex-direction: column;
@@ -754,7 +769,11 @@ class PepuTracker extends HTMLElement {
       localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
     
       dropdown.style.display = "none";
-      resultDiv.innerHTML = `<p class="pepu-loading">Loading portfolio...</p>`;
+      resultDiv.innerHTML = `
+        <div class="pepu-loading">
+          <div>Loading portfolio</div>
+          <div class="pepu-spinner" style="margin-top: 10px;"></div>
+        </div>`;
     
       const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
     
