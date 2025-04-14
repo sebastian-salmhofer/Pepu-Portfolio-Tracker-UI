@@ -227,12 +227,52 @@ class PepuTracker extends HTMLElement {
             align-items: flex-start;
           }
         }
+
+        /* === Wallet Modal === */
+        #walletModal {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+        
+        .modal-overlay {
+          position: absolute;
+          width: 100%; height: 100%;
+          background-color: rgba(0, 0, 0, 0.7);
+          z-index: 1;
+        }
+        
+        .modal-content {
+          position: relative;
+          background-color: #111;
+          border: 3px solid #F1BC4A;
+          border-radius: 15px;
+          padding: 30px;
+          z-index: 2;
+          width: 90%;
+          max-width: 500px;
+          max-height: 80%;
+          overflow-y: auto;
+        }
+        
+        .close-modal {
+          position: absolute;
+          top: 15px;
+          right: 20px;
+          font-size: 28px;
+          color: #F1BC4A;
+          cursor: pointer;
+        }
       </style>
 
       <div id="pepu-app" style="max-width: 1000px; margin: auto;">
         <div class="pepu-card input-card">
-          <div class="wallet-container">
-            <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
+          <div class="wallet-container" style="display: flex; gap: 10px;">
+            <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" style="flex: 1;" />
+            <button id="openWalletModal" class="pepu-button" title="Manage wallets">☰</button>
             <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
           </div>
           <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
@@ -245,6 +285,16 @@ class PepuTracker extends HTMLElement {
           </div>
         </div>
         <div id="result"></div>
+      </div>
+
+      <!-- Wallet Management Modal -->
+      <div id="walletModal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+          <span class="close-modal" id="closeWalletModal">&times;</span>
+          <h2 style="color: white; font-family: 'Poppins', sans-serif;">Manage Wallets</h2>
+          <div id="walletList" style="margin-top: 20px;"></div>
+        </div>
       </div>
     `;
   }
@@ -291,6 +341,24 @@ class PepuTracker extends HTMLElement {
     document.addEventListener("click", (e) => {
       if (!this.contains(e.target)) dropdown.style.display = "none";
     });
+
+    const walletModal = this.querySelector("#walletModal");
+    const closeWalletModal = this.querySelector("#closeWalletModal");
+    
+    this.querySelector("#openWalletModal").onclick = () => {
+      walletModal.style.display = "flex";
+    };
+    
+    closeWalletModal.onclick = () => {
+      walletModal.style.display = "none";
+    };
+    
+    window.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal-overlay")) {
+        walletModal.style.display = "none";
+      }
+    });
+
 
     fetchBtn.onclick = async () => {
       const input = walletInput.value.trim();
