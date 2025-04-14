@@ -81,6 +81,14 @@ class PepuTracker extends HTMLElement {
       .wallet-container {
         position: relative;
         margin-bottom: 10px;
+        display: flex;
+        align-items: center; /* aligns modal button vertically */
+        gap: 10px;
+      }
+
+      .wallet-input-wrapper {
+        flex: 1;
+        position: relative;
       }
 
       #walletInput {
@@ -96,19 +104,29 @@ class PepuTracker extends HTMLElement {
       .wallet-dropdown {
         position: absolute;
         top: 100%;
+        margin-top: -2px;
         left: 0;
-        right: 0;
+        width: calc(100% - 2px); /* Slightly narrower than input to account for border */
         background: white;
         border: 1px solid #ccc;
         border-top: none;
         z-index: 10;
         font-family: 'Raleway', sans-serif;
+        font-size: 15px;
+        max-height: 250px;
+        overflow-y: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .wallet-dropdown div {
         padding: 10px;
         cursor: pointer;
         color: black;
+        font-size: 15px;
+        line-height: 1.4;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .wallet-dropdown div:hover {
@@ -230,6 +248,17 @@ class PepuTracker extends HTMLElement {
       }
 
       /* === Wallet Modal === */
+
+      #openWalletModal {
+        height: 42px; /* match input height */
+        padding: 0 16px;
+        font-size: 24px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       #walletModal {
         position: fixed;
         top: 0;
@@ -308,10 +337,12 @@ class PepuTracker extends HTMLElement {
 
       <div id="pepu-app" style="max-width: 1000px; margin: auto;">
         <div class="pepu-card input-card">
-          <div class="wallet-container" style="display: flex; gap: 10px;">
-            <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" style="flex: 1;" />
+          <div class="wallet-container">
+            <div class="wallet-input-wrapper">
+              <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
+              <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
+            </div>
             <button id="openWalletModal" class="pepu-button" title="Manage wallets">☰</button>
-            <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
           </div>
           <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
             <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
@@ -343,6 +374,14 @@ class PepuTracker extends HTMLElement {
 
   setup() {
     const walletInput = this.querySelector("#walletInput");
+    walletInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!fetchBtn.disabled) {
+          fetchBtn.click();
+        }
+      }
+    });
     const dropdown = this.querySelector("#walletDropdown");
     const fetchBtn = this.querySelector("#fetchBtn");
     const resultDiv = this.querySelector("#result");
@@ -365,16 +404,38 @@ class PepuTracker extends HTMLElement {
 
     const updateDropdown = () => {
       dropdown.innerHTML = "";
-      if (savedWallets.length === 0) return dropdown.style.display = "none";
-      savedWallets.forEach((wallet) => {
-        const option = document.createElement("div");
-        option.textContent = wallet;
-        option.onclick = () => {
-          walletInput.value = wallet;
+      const wallets = loadWallets();
+      const hasMultipleSelected = wallets.filter(w => w.selected).length > 1;
+
+      if (wallets.length === 0) {
+        dropdown.style.display = "none";
+        return;
+      }
+
+      if (hasMultipleSelected) {
+        const multiOption = document.createElement("div");
+        multiOption.textContent = "🧮 Multiwallet (combined)";
+        multiOption.style.fontWeight = "bold";
+        multiOption.onclick = () => {
+          const selectedAddresses = wallets.filter(w => w.selected).map(w => w.address);
+          walletInput.value = selectedAddresses.join(", ");
           dropdown.style.display = "none";
+        };
+        dropdown.appendChild(multiOption);
+      }
+
+      wallets.forEach((walletObj) => {
+        const option = document.createElement("div");
+        option.textContent = `${walletObj.label || "Unnamed"} – ${walletObj.address}`;
+        option.title = walletObj.address;
+        option.onclick = () => {
+          walletInput.value = walletObj.address;
+          dropdown.style.display = "none";
+          fetchBtn.click();
         };
         dropdown.appendChild(option);
       });
+
       dropdown.style.display = "block";
     };
 
