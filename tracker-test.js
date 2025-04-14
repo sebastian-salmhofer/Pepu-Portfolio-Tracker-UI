@@ -329,6 +329,19 @@ class PepuTracker extends HTMLElement {
         padding-right: 10px;
       }
 
+      .modal-chart {
+        position: relative;
+        background-color: #111;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        padding: 30px;
+        z-index: 2;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80%;
+        overflow-y: auto;
+      }
+
       .close-modal {
         position: absolute;
         top: 15px;
@@ -358,7 +371,7 @@ class PepuTracker extends HTMLElement {
         z-index: 1;
       }
 
-      #chartModal .modal-content {
+      #chartModal .modal-chart {
         position: relative;
         background-color: #000;
         border: 3px solid #F1BC4A;
@@ -396,11 +409,11 @@ class PepuTracker extends HTMLElement {
       }
 
       .pepu-spinner {
-        border: 6px solid #f3f3f3;
-        border-top: 6px solid #F1BC4A;
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #F1BC4A;
         border-radius: 50%;
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 40px;
         animation: spin 0.8s linear infinite;
         margin: auto;
       }
@@ -480,9 +493,12 @@ class PepuTracker extends HTMLElement {
       <!-- GeckoTerminal Chart Modal -->
       <div id="chartModal" style="display:none;">
         <div class="modal-overlay"></div>
-        <div class="modal-content" style="padding: 0; max-width: 90%; max-height: 90%; overflow: hidden;">
+        <div class="modal-chart" style="padding: 0; max-width: 90%; max-height: 90%; overflow: hidden;">
           <span class="close-modal" id="closeChartModal" style="z-index: 3; position: absolute; top: 15px; right: 20px; font-size: 28px; color: #F1BC4A; cursor: pointer;">&times;</span>
-          <iframe id="chartIframe" width="100%" height="100%" frameborder="0" allowfullscreen style="border: none;"></iframe>
+          <div style="position: relative; width: 100%; height: 100%;">
+            <div id="chartSpinner" class="pepu-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
+            <iframe id="chartIframe" width="100%" height="100%" frameborder="0" allowfullscreen style="border: none; display: none;"></iframe>
+          </div>
         </div>
       </div>
     `;
@@ -491,6 +507,10 @@ class PepuTracker extends HTMLElement {
   openChart(contractAddress) {
     const chartModal = this.querySelector("#chartModal");
     const chartIframe = this.querySelector("#chartIframe");
+    const chartSpinner = this.querySelector("#chartSpinner");
+
+    chartIframe.style.display = "none";
+    chartSpinner.style.display = "block";
     chartIframe.src = `https://www.geckoterminal.com/pepe-unchained/pools/${contractAddress}?embed=1&info=0&swaps=0&grayscale=1&light_chart=0`;
     chartModal.style.display = "flex";
   }
@@ -732,21 +752,29 @@ class PepuTracker extends HTMLElement {
     addRow.appendChild(addBtn);
     walletListDiv.appendChild(addRow);
 
-    const chartModal = this.querySelector("#chartModal");
-    const closeChartModal = this.querySelector("#closeChartModal");
-    const chartIframe = this.querySelector("#chartIframe");
+    const chartModal = document.getElementById("chartModal");
+    const closeChartModal = document.getElementById("closeChartModal");
+    const chartIframe = document.getElementById("chartIframe");
+    const chartSpinner = document.getElementById("chartSpinner");
 
     closeChartModal.onclick = () => {
       chartModal.style.display = "none";
-      chartIframe.src = "";
+      chartIframe.src = ""; // clear iframe
+      chartIframe.style.display = "none";
     };
 
     window.addEventListener("click", (e) => {
       if (e.target.classList.contains("modal-overlay")) {
         chartModal.style.display = "none";
         chartIframe.src = "";
+        chartIframe.style.display = "none";
       }
     });
+
+    chartIframe.onload = () => {
+      chartSpinner.style.display = "none";
+      chartIframe.style.display = "block";
+    };
 
   };
 
@@ -775,7 +803,7 @@ class PepuTracker extends HTMLElement {
           <div class="pepu-spinner" style="margin-top: 10px;"></div>
         </div>`;
     
-      const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
+      const baseUrl = "https://pepu-portfolio-tracker.onrender.com";
     
       const fetchAll = async () => {
         const allPortfolio = {
