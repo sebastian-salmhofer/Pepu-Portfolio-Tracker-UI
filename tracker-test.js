@@ -50,6 +50,8 @@ class PepuTracker extends HTMLElement {
         color: #000;
         font-family: 'Raleway', sans-serif;
         margin-bottom: 20px;
+        position: relative;
+        z-index: 20;
       }
 
       .pepu-filters {
@@ -229,6 +231,28 @@ class PepuTracker extends HTMLElement {
         font-weight: bold;
       }
 
+      .token-stats {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        font-size: 14px;
+        white-space: nowrap;
+        margin-left: auto;
+        text-align: right;
+        line-height: 1.3;
+      }
+
+      .token-stats .change span.up {
+        color: #039112;
+        font-weight: bold;
+      }
+
+      .token-stats .change span.down {
+        color: #c60000;
+        font-weight: bold;
+      }
+
       .pepu-loading,
       .pepu-error {
         text-align: center;
@@ -301,6 +325,33 @@ class PepuTracker extends HTMLElement {
         font-size: 28px;
         color: #F1BC4A;
         cursor: pointer;
+      }
+
+      .animated-bar-wrapper {
+        display: flex;
+        height: 60px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.1);
+        position: relative;
+        margin-top: 10px;
+        font-family: 'Raleway', sans-serif;
+      }
+
+      .animated-segment {
+        background: var(--bar-color);
+        width: 0%;
+        color: white;
+        font-size: 14px;
+        text-align: center;
+        padding: 6px 8px;
+        animation: growBar 0.6s ease-out forwards;
+      }
+
+      @keyframes growBar {
+        to {
+          width: var(--bar-width);
+        }
       }
 
       @media (max-width: 700px) {
@@ -703,7 +754,31 @@ class PepuTracker extends HTMLElement {
         if (!hideLP) total += lps.total_value_usd || 0;
         if (!hidePresale) total += presales.total_value_usd || 0;
 
-        let html = `<div class="pepu-card total-card">Total Portfolio Value: ${formatUSD(total)}</div><div class="pepu-card-container">`;
+        let html = `
+          <div class="pepu-card total-card">
+            <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
+              Total Portfolio Value: ${formatUSD(total)}
+            </div>
+            <div class="animated-bar-wrapper">
+              ${[
+                { label: "PEPU", value: portfolio.native_pepu.total_usd + portfolio.staked_pepu.total_usd + portfolio.unclaimed_rewards.total_usd, color: "#039112" },
+                { label: "L2 Tokens", value: portfolio.tokens.reduce((sum, t) => sum + (hideSmallBalances && ((t.total_usd > 0 && t.total_usd < 1) || (t.total_usd === 0 && t.amount <= 1) || (t.warning && t.warning.toLowerCase().includes("low liquidity"))) ? 0 : t.total_usd), 0), color: "#F1BC4A" },
+                { label: "LPs", value: hideLP ? 0 : lps.total_value_usd, color: "#3395FF" },
+                { label: "Presales", value: hidePresale ? 0 : presales.total_value_usd, color: "#AA74E2" }
+              ]
+                .filter(seg => seg.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .map((seg, index) => {
+                  const pct = total > 0 ? (seg.value / total * 100).toFixed(1) : "0.0";
+                  return `
+                    <div class="animated-segment" style="--bar-color: ${seg.color}; --bar-width: ${pct}%; animation-delay: ${index * 0.1}s;">
+                      <span>${pct}%<br><strong>${formatUSD(seg.value)}</strong><br>${seg.label}</span>
+                    </div>`;
+                }).join("")}
+            </div>
+          </div>
+          <div class="pepu-card-container">
+        `;
 
         const renderCard = (label, item) => `
           <div class="pepu-card pepu-main">
@@ -724,7 +799,7 @@ class PepuTracker extends HTMLElement {
         portfolio.tokens.forEach(token => {
           if (hideSmall.checked && (
             (token.total_usd > 0 && token.total_usd < 1) ||
-            (token.total_usd === 0 && token.amount <= 1) ||
+            (token.total_usd === 0 && token.amount <= 10) ||
             (token.warning && token.warning.toLowerCase().includes("low liquidity"))
           )) return;
 
@@ -738,10 +813,22 @@ class PepuTracker extends HTMLElement {
                   </a>
                 </strong>
               </div>
-              <div class="amount">Amount: ${formatAmount(token.amount)}</div>
-              <div class="price">Price: ${formatPrice(token.price_usd)}</div>
-              <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
-              ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
+              <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <div>
+                  <div class="amount">Amount: ${formatAmount(token.amount)}</div>
+                  <div class="price">Price: ${formatPrice(token.price_usd)}</div>
+                  <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
+                  ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
+                </div>
+                <div class="token-stats">
+                  <div>VOL 24h: ${formatAmount(token.volume_24h_usd)}</div>
+                  <div class="change">
+                    24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
+                      ${token.price_change_24h_percentage.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>`;
         });
 
