@@ -253,9 +253,11 @@ class PepuTracker extends HTMLElement {
           padding: 30px;
           z-index: 2;
           width: 90%;
-          max-width: 500px;
+          max-width: 510px;
           max-height: 80%;
           overflow-y: auto;
+          scrollbar-gutter: stable; /* Prevent layout shift when scrollbar appears */
+          padding-right: 10px; /* Extra space to avoid squishing content */
         }
         
         .close-modal {
@@ -292,8 +294,12 @@ class PepuTracker extends HTMLElement {
         <div class="modal-overlay"></div>
         <div class="modal-content">
           <span class="close-modal" id="closeWalletModal">&times;</span>
-          <h2 style="color: white; font-family: 'Poppins', sans-serif;">Manage Wallets</h2>
-          <div id="walletList" style="margin-top: 20px;"></div>
+          <h2 style="color: white; font-family: 'Poppins', sans-serif; font-size: 26px; margin-bottom: 10px;">Manage Wallets</h2>
+          <p style="color: #ccc; font-family: 'Raleway', sans-serif; font-size: 14px; margin-bottom: 20px;">
+            You can save multiple wallets here and select which ones to include in the Multi Wallet view using the checkboxes.
+            When 'Multiwallet' is selected in the dropdown, the tracker will combine the selected wallets into one portfolio.
+          </p>
+          <div id="walletList"></div>
         </div>
       </div>
     `;
@@ -358,6 +364,156 @@ class PepuTracker extends HTMLElement {
         walletModal.style.display = "none";
       }
     });
+
+    const walletListDiv = this.querySelector("#walletList");
+
+    const loadWallets = () => {
+      const raw = JSON.parse(localStorage.getItem("pepu_wallets_v2") || "[]");
+      return Array.isArray(raw) ? raw : [];
+    };
+
+    const saveWallets = (list) => {
+      localStorage.setItem("pepu_wallets_v2", JSON.stringify(list));
+    };
+
+    const renderWalletList = () => {
+    const wallets = loadWallets();
+    walletListDiv.innerHTML = "";
+
+    wallets.forEach((walletObj, i) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.marginBottom = "10px";
+      row.style.gap = "10px";
+      row.style.flexWrap = "wrap";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = walletObj.selected;
+      checkbox.style.accentColor = "#F1BC4A";
+      checkbox.style.width = "16px";
+      checkbox.style.height = "16px";
+      checkbox.style.cursor = "pointer";
+      checkbox.onchange = () => {
+        wallets[i].selected = checkbox.checked;
+        saveWallets(wallets);
+      };
+
+      const labelWrapper = document.createElement("div");
+      labelWrapper.style.display = "flex";
+      labelWrapper.style.alignItems = "center";
+      labelWrapper.style.gap = "6px";
+      labelWrapper.style.flex = "1";
+      labelWrapper.style.minWidth = "100px";
+
+      const label = document.createElement("div");
+      label.textContent = walletObj.label || `Wallet ${i + 1}`;
+      label.style.color = "white";
+      label.style.cursor = "pointer";
+      label.style.fontFamily = "Raleway, sans-serif";
+      label.style.fontSize = "16px";
+      label.style.overflow = "hidden";
+      label.style.textOverflow = "ellipsis";
+      label.style.whiteSpace = "nowrap";
+      label.style.maxWidth = "100px";
+
+      const editBtn = document.createElement("span");
+      editBtn.textContent = "✏️";
+      editBtn.style.cursor = "pointer";
+      editBtn.style.fontSize = "16px";
+      editBtn.title = "Edit label";
+
+      const enterEditMode = () => {
+        const input = document.createElement("input");
+        input.value = wallets[i].label || `Wallet ${i + 1}`;
+        input.style.width = "100px";
+        input.style.padding = "4px";
+        input.style.fontFamily = "Raleway, sans-serif";
+        input.onblur = () => {
+          wallets[i].label = input.value;
+          saveWallets(wallets);
+          renderWalletList();
+        };
+        input.onkeydown = (e) => {
+          if (e.key === "Enter") input.blur();
+        };
+        labelWrapper.replaceChild(input, label);
+        editBtn.style.display = "none";
+        input.focus();
+      };
+
+      editBtn.onclick = enterEditMode;
+      label.ondblclick = enterEditMode;
+
+      labelWrapper.appendChild(label);
+      labelWrapper.appendChild(editBtn);
+
+      const addr = document.createElement("div");
+      addr.textContent = walletObj.address;
+      addr.style.color = "gray";
+      addr.style.fontSize = "13px";
+      addr.style.flex = "2";
+      addr.style.overflowWrap = "break-word";
+
+      const delBtn = document.createElement("span");
+      delBtn.textContent = "❌";
+      delBtn.style.cursor = "pointer";
+      delBtn.style.color = "red";
+      delBtn.style.fontSize = "18px";
+      delBtn.title = "Remove wallet";
+      delBtn.onclick = () => {
+        wallets.splice(i, 1);
+        saveWallets(wallets);
+        renderWalletList();
+      };
+
+      row.appendChild(checkbox);
+      row.appendChild(labelWrapper);
+      row.appendChild(addr);
+      row.appendChild(delBtn);
+      walletListDiv.appendChild(row);
+    });
+
+    // Add wallet row
+    const addRow = document.createElement("div");
+    addRow.style.display = "flex";
+    addRow.style.alignItems = "center";
+    addRow.style.gap = "10px";
+    addRow.style.marginTop = "20px";
+
+    const newLabel = document.createElement("input");
+    newLabel.placeholder = "Label (optional)";
+    newLabel.style.flex = "1";
+    newLabel.style.padding = "6px";
+
+    const newAddress = document.createElement("input");
+    newAddress.placeholder = "0x wallet address";
+    newAddress.style.flex = "2";
+    newAddress.style.padding = "6px";
+
+    const addBtn = document.createElement("span");
+    addBtn.textContent = "+";
+    addBtn.style.cursor = "pointer";
+    addBtn.style.color = "#039112";
+    addBtn.style.fontSize = "40px";
+    addBtn.title = "Add wallet";
+    addBtn.onclick = () => {
+      const addr = newAddress.value.trim();
+      if (!addr.startsWith("0x") || addr.length !== 42) return alert("Invalid wallet address.");
+      const label = newLabel.value.trim();
+      wallets.push({ address: addr, label: label || `Wallet ${wallets.length + 1}`, selected: true });
+      saveWallets(wallets);
+      renderWalletList();
+    };
+
+    addRow.appendChild(newLabel);
+    addRow.appendChild(newAddress);
+    addRow.appendChild(addBtn);
+    walletListDiv.appendChild(addRow);
+  };
+
+    renderWalletList();
 
 
     fetchBtn.onclick = async () => {
