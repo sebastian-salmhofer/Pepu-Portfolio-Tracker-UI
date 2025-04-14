@@ -6,269 +6,305 @@ class PepuTracker extends HTMLElement {
 
   render() {
     this.innerHTML = `
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Raleway:wght@400&display=swap');
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&family=Raleway:wght@400&display=swap');
 
-        .pepu-card-container {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
-          justify-items: stretch;
-        }
+      .pepu-card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        justify-items: stretch;
+      }
 
-        .pepu-card {
-          background: #F1BC4A;
-          border: 3px solid #000;
-          border-radius: 15px;
-          padding: 10px;
-          color: #000;
-          min-width: 280px;
-          box-sizing: border-box;
-          font-family: 'Raleway', sans-serif;
-        }
+      .pepu-card {
+        background: #F1BC4A;
+        border: 3px solid #000;
+        border-radius: 15px;
+        padding: 10px;
+        color: #000;
+        min-width: 280px;
+        box-sizing: border-box;
+        font-family: 'Raleway', sans-serif;
+      }
 
-        .pepu-card.pepu-main {
-          background: #039112;
-          color: #fff;
-        }
+      .pepu-card.pepu-main {
+        background: #039112;
+        color: #fff;
+      }
 
-        .pepu-card.total-card {
-          background: #000;
-          border: 3px solid #F1BC4A;
-          color: #fff;
-          font-size: 24px;
-          font-weight: bold;
-          text-align: center;
-          margin-bottom: 30px;
-        }
+      .pepu-card.total-card {
+        background: #000;
+        border: 3px solid #F1BC4A;
+        color: #fff;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 30px;
+      }
 
-        .pepu-card.input-card {
-          background: rgba(255, 255, 255, 0.15);
-          border: 3px solid #F1BC4A;
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          color: #000;
-          font-family: 'Raleway', sans-serif;
-          margin-bottom: 20px;
-        }
+      .pepu-card.input-card {
+        background: rgba(255, 255, 255, 0.15);
+        border: 3px solid #F1BC4A;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: #000;
+        font-family: 'Raleway', sans-serif;
+        margin-bottom: 20px;
+      }
 
-        .pepu-filters {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 15px;
-          margin-top: 15px;
-          align-items: center;
-        }
-        
-        .pepu-filters label {
-          color: white;
-          font-weight: bold;
-          font-size: 16px;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-family: 'Raleway', sans-serif;
-          padding-bottom: 14px; /* 🔧 Aligns label text better with button */
-        }
-        
-        .pepu-filters input[type="checkbox"] {
-          accent-color: #F1BC4A;
-          width: 16px;
-          height: 16px;
-          cursor: pointer;
-        }
+      .pepu-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
+        align-items: center;
+      }
 
-        .wallet-container {
-          position: relative;
-          margin-bottom: 10px;
-        }
+      .pepu-filters label {
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Raleway', sans-serif;
+        padding-bottom: 14px;
+      }
 
-        #walletInput {
-          width: 100%;
-          padding: 10px;
-          border-radius: 5px;
-          border: 1px solid #ccc;
-          font-size: 16px;
-          font-family: 'Raleway', sans-serif;
-          background-color: white;
-        }
+      .pepu-filters input[type="checkbox"] {
+        accent-color: #F1BC4A;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
 
-        .wallet-dropdown {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          background: white;
-          border: 1px solid #ccc;
-          border-top: none;
-          z-index: 10;
-          font-family: 'Raleway', sans-serif;
-        }
+      .wallet-container {
+        position: relative;
+        margin-bottom: 10px;
+      }
 
-        .wallet-dropdown div {
-          padding: 10px;
-          cursor: pointer;
-          color: black;
-        }
+      #walletInput {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 16px;
+        font-family: 'Raleway', sans-serif;
+        background-color: white;
+      }
 
-        .wallet-dropdown div:hover {
-          background: #eee;
-        }
+      .wallet-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        z-index: 10;
+        font-family: 'Raleway', sans-serif;
+      }
 
+      .wallet-dropdown div {
+        padding: 10px;
+        cursor: pointer;
+        color: black;
+      }
+
+      .wallet-dropdown div:hover {
+        background: #eee;
+      }
+
+      .filter-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .filter-row label {
+        font-family: 'Raleway', sans-serif;
+        font-size: 15px;
+        color: #000;
+      }
+
+      .pepu-button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 15px;
+        border: 2px solid #000;
+        background-color: #039112;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .pepu-button:hover {
+        background-color: #F1BC4A;
+        color: #000;
+      }
+
+      .lp-title {
+        font-size: 24px;
+        color: white;
+        text-align: center;
+        margin: 30px 0 10px;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .lp-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .lp-tokens {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .lp-token {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-family: 'Raleway', sans-serif;
+      }
+
+      .lp-token img {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+      }
+
+      .lp-total {
+        font-weight: bold;
+        font-size: 18px;
+        text-align: center;
+      }
+
+      .pepu-token-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .pepu-token-header img {
+        margin-right: 10px;
+        border-radius: 4px;
+      }
+
+      .pepu-token-header .name {
+        font-family: 'Poppins', sans-serif;
+        font-size: 17px;
+        font-weight: 600;
+      }
+
+      .pepu-card .price,
+      .pepu-card .amount {
+        font-size: 15px;
+      }
+
+      .pepu-card .price.bold {
+        font-weight: bold;
+      }
+
+      .pepu-loading,
+      .pepu-error {
+        text-align: center;
+        margin-top: 20px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+      }
+
+      .pepu-loading {
+        color: white;
+        font-size: 20px;
+      }
+
+      .pepu-error {
+        color: red;
+        font-size: 18px;
+      }
+
+      /* === Wallet Modal === */
+      #walletModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .modal-overlay {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1;
+      }
+
+      .modal-content {
+        position: relative;
+        background-color: #111;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        padding: 30px;
+        z-index: 2;
+        width: 90%;
+        max-width: 510px;
+        max-height: 80%;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+        padding-right: 10px;
+      }
+
+      .close-modal {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        color: #F1BC4A;
+        cursor: pointer;
+      }
+
+      @media (max-width: 700px) {
         .filter-row {
-          display: flex;
-          align-items: center;
-          gap: 20px;
-          flex-wrap: wrap;
-          margin-top: 10px;
-        }
-
-        .filter-row label {
-          font-family: 'Raleway', sans-serif;
-          font-size: 15px;
-          color: #000;
-        }
-
-        .pepu-button {
-          padding: 10px 20px;
-          font-size: 16px;
-          border-radius: 15px;
-          border: 2px solid #000;
-          background-color: #039112;
-          color: white;
-          cursor: pointer;
-          transition: background-color 0.3s ease;
-        }
-
-        .pepu-button:hover {
-          background-color: #F1BC4A;
-          color: #000;
-        }
-
-        .lp-title {
-          font-size: 24px;
-          color: white;
-          text-align: center;
-          margin: 30px 0 10px;
-          font-family: 'Poppins', sans-serif;
-        }
-
-        .lp-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .lp-tokens {
-          display: flex;
           flex-direction: column;
-          gap: 6px;
+          align-items: flex-start;
         }
 
-        .lp-token {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 15px;
-          font-family: 'Raleway', sans-serif;
-        }
-
-        .lp-token img {
-          width: 28px;
-          height: 28px;
-          border-radius: 4px;
-        }
-
-        .lp-total {
-          font-weight: bold;
-          font-size: 18px;
-          text-align: center;
-        }
-
-        .pepu-token-header {
-          display: flex;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .pepu-token-header img {
-          margin-right: 10px;
-          border-radius: 4px;
-        }
-
-        .pepu-token-header .name {
-          font-family: 'Poppins', sans-serif;
-          font-size: 17px;
-          font-weight: 600;
-        }
-
-        .pepu-card .price,
-        .pepu-card .amount {
-          font-size: 15px;
-        }
-
-        .pepu-card .price.bold {
-          font-weight: bold;
-        }
-
-        .pepu-loading, .pepu-error {
-          text-align: center;
-          margin-top: 20px;
-          font-family: 'Poppins', sans-serif;
-          font-weight: 600;
-        }
-
-        .pepu-loading { color: white; font-size: 20px; }
-        .pepu-error { color: red; font-size: 18px; }
-
-        @media (max-width: 700px) {
-          .filter-row {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-        }
-
-        /* === Wallet Modal === */
-        #walletModal {
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-        }
-        
-        .modal-overlay {
-          position: absolute;
-          width: 100%; height: 100%;
-          background-color: rgba(0, 0, 0, 0.7);
-          z-index: 1;
-        }
-        
         .modal-content {
-          position: relative;
-          background-color: #111;
-          border: 3px solid #F1BC4A;
-          border-radius: 15px;
-          padding: 30px;
-          z-index: 2;
-          width: 90%;
-          max-width: 510px;
-          max-height: 80%;
-          overflow-y: auto;
-          scrollbar-gutter: stable; /* Prevent layout shift when scrollbar appears */
-          padding-right: 10px; /* Extra space to avoid squishing content */
+          width: 100%;
+          height: 100%;
+          max-width: none;
+          max-height: none;
+          border-radius: 0;
+          padding: 20px;
+          box-sizing: border-box;
         }
-        
-        .close-modal {
-          position: absolute;
-          top: 15px;
-          right: 20px;
-          font-size: 28px;
-          color: #F1BC4A;
-          cursor: pointer;
+
+        #walletList > div {
+          flex-direction: column !important;
+          align-items: flex-start !important;
         }
-      </style>
+
+        #walletList > div > div,
+        #walletList > div > input {
+          width: 100% !important;
+        }
+
+        #walletList .pepu-button {
+          align-self: flex-end;
+        }
+      }
+    </style>
 
       <div id="pepu-app" style="max-width: 1000px; margin: auto;">
         <div class="pepu-card input-card">
