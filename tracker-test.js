@@ -440,17 +440,56 @@ class PepuTracker extends HTMLElement {
         }
 
         #walletList > div {
-          flex-direction: column !important;
-          align-items: flex-start !important;
+          display: grid !important;
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: auto auto;
+          align-items: center;
+          gap: 8px 12px;
         }
 
-        #walletList > div > div,
-        #walletList > div > input {
-          width: 100% !important;
+        #walletList > div > input[type="checkbox"] {
+          grid-row: span 2;
+          align-self: start;
         }
 
-        #walletList .pepu-button {
+        #walletList > div > div:first-of-type {
+          grid-column: 2;
+          grid-row: 1;
+        }
+
+        #walletList > div > div:nth-of-type(2) {
+          font-size: 8px !important;
+          color: gray;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+
+        #walletList > div > span:last-child {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          align-self: center;
+          justify-self: end;
+        }
+
+        .add-wallet-row {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .add-wallet-row input {
+          width: 100%;
+          padding: 8px;
+          font-size: 14px;
+        }
+
+        .add-wallet-row span {
+          font-size: 32px;
           align-self: flex-end;
+          margin-right: 4px;
+          line-height: 1;
         }
       }
     </style>
@@ -803,7 +842,7 @@ class PepuTracker extends HTMLElement {
           <div class="pepu-spinner" style="margin-top: 10px;"></div>
         </div>`;
     
-      const baseUrl = "https://pepu-portfolio-tracker.onrender.com";
+      const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
     
       const fetchAll = async () => {
         const allPortfolio = {
