@@ -292,29 +292,87 @@ class PepuTracker extends HTMLElement {
       if (!this.contains(e.target)) dropdown.style.display = "none";
     });
 
-    fetchBtn.onclick = () => {
-      const wallet = walletInput.value.trim();
-      if (!wallet.startsWith("0x") || wallet.length !== 42) {
-        resultDiv.innerHTML = `<p class="pepu-error">Please enter a valid wallet address.</p>`;
+    fetchBtn.onclick = async () => {
+      const input = walletInput.value.trim();
+      const wallets = input.split(",").map(w => w.trim()).filter(w => w.startsWith("0x") && w.length === 42);
+    
+      if (wallets.length === 0) {
+        resultDiv.innerHTML = `<p class="pepu-error">Please enter at least one valid wallet address.</p>`;
         return;
       }
-
-      if (!savedWallets.includes(wallet)) {
-        savedWallets.unshift(wallet);
-        localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
-      }
-
+    
+      wallets.forEach(wallet => {
+        if (!savedWallets.includes(wallet)) {
+          savedWallets.unshift(wallet);
+        }
+      });
+      localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
+    
       dropdown.style.display = "none";
       resultDiv.innerHTML = `<p class="pepu-loading">Loading portfolio...</p>`;
-
+    
       const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
-      const endpoints = [
-        fetch(`${baseUrl}/portfolio?wallet=${wallet}`).then(res => res.json()),
-        fetch(`${baseUrl}/lp-positions?wallet=${wallet}`).then(res => res.json()),
-        fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json()),
-      ];
+    
+      const fetchAll = async () => {
+        const allPortfolio = {
+          native_pepu: { amount: 0, price_usd: 0, total_usd: 0, icon: "" },
+          staked_pepu: { amount: 0, price_usd: 0, total_usd: 0, icon: "" },
+          unclaimed_rewards: { amount: 0, price_usd: 0, total_usd: 0, icon: "" },
+          tokens: [],
+          total_value_usd: 0
+        };
+        const allTokens = new Map();
+        let lpPositions = [];
+        let presale = null;
+        let presaleUsdTotal = 0;
+    
+        for (const wallet of wallets) {
+          const [portfolio, lps, presales] = await Promise.all([
+            fetch(`${baseUrl}/portfolio?wallet=${wallet}`).then(res => res.json()),
+            fetch(`${baseUrl}/lp-positions?wallet=${wallet}`).then(res => res.json()),
+            fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json())
+          ]);
+    
+          // Combine PEPU native/staked/rewards
+          for (const key of ["native_pepu", "staked_pepu", "unclaimed_rewards"]) {
+            allPortfolio[key].amount += portfolio[key].amount;
+            allPortfolio[key].total_usd += portfolio[key].total_usd;
+            allPortfolio[key].price_usd = portfolio[key].price_usd;
+            allPortfolio[key].icon = portfolio[key].icon;
+          }
+    
+          // Merge tokens by contract address
+          for (const token of portfolio.tokens) {
+            if (!allTokens.has(token.contract)) {
+              allTokens.set(token.contract, { ...token });
+            } else {
+              const t = allTokens.get(token.contract);
+              t.amount += token.amount;
+              t.total_usd += token.total_usd;
+            }
+          }
+    
+          allPortfolio.total_value_usd += portfolio.total_value_usd;
+          lpPositions = lpPositions.concat(lps.lp_positions || []);
+          if (presales.pesw) {
+            if (!presale) {
+              presale = { ...presales.pesw };
+            } else {
+              presale.deposited_tokens += presales.pesw.deposited_tokens;
+              presale.staked_tokens += presales.pesw.staked_tokens;
+              presale.pending_rewards += presales.pesw.pending_rewards;
+            }
+            presaleUsdTotal += presales.total_value_usd || 0;
+          }
+        }
+    
+        allPortfolio.tokens = Array.from(allTokens.values());
+        return { portfolio: allPortfolio, lps: { lp_positions: lpPositions, total_value_usd: lpPositions.reduce((sum, lp) => sum + (lp.amount0_usd + lp.amount1_usd), 0) }, presales: { pesw: presale, total_value_usd: presaleUsdTotal } };
+      };
+    
+      const { portfolio, lps, presales } = await fetchAll();
 
-      Promise.all(endpoints).then(([portfolio, lps, presales]) => {
+      fetchAll().then(({ portfolio, lps, presales }) => {
         let total = portfolio.total_value_usd;
 
         const hideSmallBalances = hideSmall.checked;
