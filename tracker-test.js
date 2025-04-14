@@ -327,6 +327,36 @@ class PepuTracker extends HTMLElement {
         cursor: pointer;
       }
 
+      #chartModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      #chartModal .modal-overlay {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1;
+      }
+
+      #chartModal .modal-content {
+        position: relative;
+        background-color: #000;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        z-index: 2;
+        width: 95%;
+        height: 85%;
+      }
+
       .animated-bar-wrapper {
         display: flex;
         height: 60px;
@@ -420,7 +450,23 @@ class PepuTracker extends HTMLElement {
           <div id="walletList"></div>
         </div>
       </div>
+
+      <!-- GeckoTerminal Chart Modal -->
+      <div id="chartModal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" style="padding: 0; max-width: 90%; max-height: 90%; overflow: hidden;">
+          <span class="close-modal" id="closeChartModal" style="z-index: 3; position: absolute; top: 15px; right: 20px; font-size: 28px; color: #F1BC4A; cursor: pointer;">&times;</span>
+          <iframe id="chartIframe" width="100%" height="100%" frameborder="0" allowfullscreen style="border: none;"></iframe>
+        </div>
+      </div>
     `;
+  }
+
+  openChart(contractAddress) {
+    const chartModal = this.querySelector("#chartModal");
+    const chartIframe = this.querySelector("#chartIframe");
+    chartIframe.src = `https://www.geckoterminal.com/pepe-unchained/pools/${contractAddress}?embed=1&info=0&swaps=0&grayscale=1&light_chart=0`;
+    chartModal.style.display = "flex";
   }
 
   setup() {
@@ -659,10 +705,26 @@ class PepuTracker extends HTMLElement {
     addRow.appendChild(newAddress);
     addRow.appendChild(addBtn);
     walletListDiv.appendChild(addRow);
+
+    const chartModal = this.querySelector("#chartModal");
+    const closeChartModal = this.querySelector("#closeChartModal");
+    const chartIframe = this.querySelector("#chartIframe");
+
+    closeChartModal.onclick = () => {
+      chartModal.style.display = "none";
+      chartIframe.src = "";
+    };
+
+    window.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal-overlay")) {
+        chartModal.style.display = "none";
+        chartIframe.src = "";
+      }
+    });
+
   };
 
     renderWalletList();
-
 
     fetchBtn.onclick = async () => {
       const input = walletInput.value.trim();
@@ -820,8 +882,8 @@ class PepuTracker extends HTMLElement {
                   <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
                   ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
                 </div>
-                <div class="token-stats">
-                  <div>VOL 24h: ${formatAmount(token.volume_24h_usd)}</div>
+                <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
+                  <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
                   <div class="change">
                     24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
                       ${token.price_change_24h_percentage.toFixed(2)}%
