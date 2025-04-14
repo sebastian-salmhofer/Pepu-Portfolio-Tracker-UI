@@ -253,6 +253,17 @@ class PepuTracker extends HTMLElement {
         font-weight: bold;
       }
 
+      .chart-icon {
+        cursor: pointer;
+        font-size: 1em;
+        margin-right: 1px;
+        transition: color 0.2s ease;
+      }
+
+      .chart-icon:hover {
+        color: #039112;
+      }
+
       .pepu-loading,
       .pepu-error {
         text-align: center;
@@ -885,6 +896,7 @@ class PepuTracker extends HTMLElement {
                 <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
                   <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
                   <div class="change">
+                    <span class="chart-icon" data-contract="${token.contract}">🗗</span>
                     24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
                       ${token.price_change_24h_percentage.toFixed(2)}%
                     </span>
