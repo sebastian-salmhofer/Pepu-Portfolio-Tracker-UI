@@ -48,6 +48,7 @@ class PepuTracker extends HTMLElement {
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         color: #000;
+        font-family: 'Raleway', sans-serif;
         margin-bottom: 20px;
         position: relative;
         z-index: 20;
@@ -83,7 +84,7 @@ class PepuTracker extends HTMLElement {
         position: relative;
         margin-bottom: 10px;
         display: flex;
-        align-items: center;
+        align-items: center; /* aligns modal button vertically */
         gap: 10px;
       }
 
@@ -107,7 +108,7 @@ class PepuTracker extends HTMLElement {
         top: 100%;
         margin-top: -2px;
         left: 0;
-        width: calc(100% - 2px);
+        width: calc(100% - 2px); /* Slightly narrower than input to account for border */
         background: white;
         border: 1px solid #ccc;
         border-top: none;
@@ -163,6 +164,7 @@ class PepuTracker extends HTMLElement {
         background-color: #F1BC4A;
         color: #000;
       }
+
       .lp-title {
         font-size: 24px;
         color: white;
@@ -280,8 +282,10 @@ class PepuTracker extends HTMLElement {
         font-size: 18px;
       }
 
+      /* === Wallet Modal === */
+
       #openWalletModal {
-        height: 42px;
+        height: 42px; /* match input height */
         padding: 0 16px;
         font-size: 24px;
         border-radius: 8px;
@@ -323,6 +327,19 @@ class PepuTracker extends HTMLElement {
         overflow-y: auto;
         scrollbar-gutter: stable;
         padding-right: 10px;
+      }
+
+      .modal-chart {
+        position: relative;
+        background-color: #111;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        padding: 30px;
+        z-index: 2;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80%;
+        overflow-y: auto;
       }
 
       .close-modal {
@@ -422,75 +439,94 @@ class PepuTracker extends HTMLElement {
           box-sizing: border-box;
         }
 
-        .add-wallet-row {
-          display: flex;
-          flex-direction: column;
-          align-items: stretch;
-          gap: 10px;
-          width: 100%;
+        #walletList > div {
+          display: grid !important;
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: auto auto;
+          align-items: center;
+          gap: 8px 12px;
         }
 
-        .add-wallet-row input {
-          width: 100%;
-          padding: 8px;
-          font-size: 14px;
+        #walletList > div > input[type="checkbox"] {
+          grid-row: span 2;
+          align-self: start;
         }
 
-        .add-wallet-row span {
-          font-size: 32px;
-          align-self: flex-end;
-          margin-right: 4px;
-          line-height: 1;
+        #walletList > div > div:first-of-type {
+          grid-column: 2;
+          grid-row: 1;
+        }
+
+        #walletList > div > div:nth-of-type(2) {
+          font-size: 8px !important;
+          color: gray;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+
+        #walletList > div > span:last-child {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          align-self: center;
+          justify-self: end;
+        }
+
+        .wallet-add-btn {
+           position: relative;
+            bottom: 8px;
         }
       }
     </style>
 
-    <div id="pepu-app" style="max-width: 1000px; margin: auto;">
-      <div class="pepu-card input-card">
-        <div class="wallet-container">
-          <div class="wallet-input-wrapper">
-            <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
-            <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
+      <div id="pepu-app" style="max-width: 1000px; margin: auto;">
+        <div class="pepu-card input-card">
+          <div class="wallet-container">
+            <div class="wallet-input-wrapper">
+              <input id="walletInput" type="text" placeholder="Enter wallet address (0x...)" />
+              <div id="walletDropdown" class="wallet-dropdown" style="display:none;"></div>
+            </div>
+            <button id="openWalletModal" class="pepu-button" title="Manage wallets">☰</button>
           </div>
-          <button id="openWalletModal" class="pepu-button" title="Manage wallets">☰</button>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
+            <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
+            <div class="pepu-filters">
+              <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
+              <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
+              <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
+            </div>
+          </div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
-          <button id="fetchBtn" class="pepu-button">Check Portfolio</button>
-          <div class="pepu-filters">
-            <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
-            <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
-            <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
+        <div id="result"></div>
+      </div>
+
+      <!-- Wallet Management Modal -->
+      <div id="walletModal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+          <span class="close-modal" id="closeWalletModal">&times;</span>
+          <h2 style="color: white; font-family: 'Poppins', sans-serif; font-size: 26px; margin-bottom: 10px;">Manage Wallets</h2>
+          <p style="color: #ccc; font-family: 'Raleway', sans-serif; font-size: 14px; margin-bottom: 20px;">
+            You can save multiple wallets here and select which ones to include in the Multi Wallet view using the checkboxes.
+            When 'Multiwallet' is selected in the dropdown, the tracker will combine the selected wallets into one portfolio.
+          </p>
+          <div id="walletList"></div>
+        </div>
+      </div>
+
+      <!-- GeckoTerminal Chart Modal -->
+      <div id="chartModal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-chart" style="padding: 0; max-width: 90%; max-height: 90%; overflow: hidden;">
+          <span class="close-modal" id="closeChartModal" style="z-index: 3; position: absolute; top: 15px; right: 20px; font-size: 28px; color: #F1BC4A; cursor: pointer;">&times;</span>
+          <div style="position: relative; width: 100%; height: 100%;">
+            <div id="chartSpinner" class="pepu-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
+            <iframe id="chartIframe" width="100%" height="100%" frameborder="0" allowfullscreen style="border: none; display: none;"></iframe>
           </div>
         </div>
       </div>
-      <div id="result"></div>
-    </div>
-
-    <div id="walletModal" style="display:none;">
-      <div class="modal-overlay"></div>
-      <div class="modal-content">
-        <span class="close-modal" id="closeWalletModal">&times;</span>
-        <h2 style="color: white; font-family: 'Poppins', sans-serif; font-size: 26px; margin-bottom: 10px;">Manage Wallets</h2>
-        <p style="color: #ccc; font-family: 'Raleway', sans-serif; font-size: 14px; margin-bottom: 20px;">
-          You can save multiple wallets here and select which ones to include in the Multi Wallet view using the checkboxes.
-          When 'Multiwallet' is selected in the dropdown, the tracker will combine the selected wallets into one portfolio.
-        </p>
-        <div id="walletList"></div>
-      </div>
-    </div>
-
-    <div id="chartModal" style="display:none;">
-      <div class="modal-overlay"></div>
-      <div class="modal-chart" style="padding: 0; max-width: 90%; max-height: 90%; overflow: hidden;">
-        <span class="close-modal" id="closeChartModal" style="z-index: 3; position: absolute; top: 15px; right: 20px; font-size: 28px; color: #F1BC4A; cursor: pointer;">&times;</span>
-        <div style="position: relative; width: 100%; height: 100%;">
-          <div id="chartSpinner" class="pepu-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
-          <iframe id="chartIframe" width="100%" height="100%" frameborder="0" allowfullscreen style="border: none; display: none;"></iframe>
-        </div>
-      </div>
-    </div>
     `;
   }
+
   openChart(contractAddress) {
     const chartModal = this.querySelector("#chartModal");
     const chartIframe = this.querySelector("#chartIframe");
@@ -504,12 +540,22 @@ class PepuTracker extends HTMLElement {
 
   setup() {
     const walletInput = this.querySelector("#walletInput");
+    walletInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!fetchBtn.disabled) {
+          fetchBtn.click();
+        }
+      }
+    });
     const dropdown = this.querySelector("#walletDropdown");
     const fetchBtn = this.querySelector("#fetchBtn");
     const resultDiv = this.querySelector("#result");
     const hideSmall = this.querySelector("#hideSmall");
     const hideLPs = this.querySelector("#hideLPs");
     const hidePresales = this.querySelector("#hidePresales");
+
+    const savedWallets = JSON.parse(localStorage.getItem("pepu_wallets") || "[]");
 
     const formatAmount = (n) => {
       const val = Number(n);
@@ -521,15 +567,6 @@ class PepuTracker extends HTMLElement {
 
     const formatUSD = (n) => n ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A";
     const formatPrice = (p) => p ? `$${p.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}` : "N/A";
-
-    const loadWallets = () => {
-      const raw = JSON.parse(localStorage.getItem("pepu_wallets_v2") || "[]");
-      return Array.isArray(raw) ? raw : [];
-    };
-
-    const saveWallets = (list) => {
-      localStorage.setItem("pepu_wallets_v2", JSON.stringify(list));
-    };
 
     const updateDropdown = () => {
       dropdown.innerHTML = "";
@@ -546,8 +583,8 @@ class PepuTracker extends HTMLElement {
         multiOption.textContent = "🧮 Multiwallet (combined)";
         multiOption.style.fontWeight = "bold";
         multiOption.onclick = () => {
-          const selected = wallets.filter(w => w.selected).map(w => w.address);
-          walletInput.value = selected.join(", ");
+          const selectedAddresses = wallets.filter(w => w.selected).map(w => w.address);
+          walletInput.value = selectedAddresses.join(", ");
           dropdown.style.display = "none";
         };
         dropdown.appendChild(multiOption);
@@ -574,20 +611,17 @@ class PepuTracker extends HTMLElement {
       if (!this.contains(e.target)) dropdown.style.display = "none";
     });
 
-    walletInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (!fetchBtn.disabled) fetchBtn.click();
-      }
-    });
-
     const walletModal = this.querySelector("#walletModal");
     const closeWalletModal = this.querySelector("#closeWalletModal");
-    const openWalletModal = this.querySelector("#openWalletModal");
-
-    openWalletModal.onclick = () => walletModal.style.display = "flex";
-    closeWalletModal.onclick = () => walletModal.style.display = "none";
-
+    
+    this.querySelector("#openWalletModal").onclick = () => {
+      walletModal.style.display = "flex";
+    };
+    
+    closeWalletModal.onclick = () => {
+      walletModal.style.display = "none";
+    };
+    
     window.addEventListener("click", (e) => {
       if (e.target.classList.contains("modal-overlay")) {
         walletModal.style.display = "none";
@@ -596,157 +630,212 @@ class PepuTracker extends HTMLElement {
 
     const walletListDiv = this.querySelector("#walletList");
 
+    const loadWallets = () => {
+      const raw = JSON.parse(localStorage.getItem("pepu_wallets_v2") || "[]");
+      return Array.isArray(raw) ? raw : [];
+    };
+
+    const saveWallets = (list) => {
+      localStorage.setItem("pepu_wallets_v2", JSON.stringify(list));
+    };
+
     const renderWalletList = () => {
-      const wallets = loadWallets();
-      walletListDiv.innerHTML = "";
+    const wallets = loadWallets();
+    walletListDiv.innerHTML = "";
 
-      wallets.forEach((walletObj, i) => {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.alignItems = "center";
-        row.style.gap = "10px";
-        row.style.marginBottom = "10px";
-        row.style.flexWrap = "wrap";
+    wallets.forEach((walletObj, i) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.marginBottom = "10px";
+      row.style.gap = "10px";
+      row.style.flexWrap = "wrap";
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = walletObj.selected;
-        checkbox.style.accentColor = "#F1BC4A";
-        checkbox.style.cursor = "pointer";
-        checkbox.onchange = () => {
-          wallets[i].selected = checkbox.checked;
-          saveWallets(wallets);
-        };
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = walletObj.selected;
+      checkbox.style.accentColor = "#F1BC4A";
+      checkbox.style.width = "16px";
+      checkbox.style.height = "16px";
+      checkbox.style.cursor = "pointer";
+      checkbox.onchange = () => {
+        wallets[i].selected = checkbox.checked;
+        saveWallets(wallets);
+      };
 
-        const labelWrapper = document.createElement("div");
-        labelWrapper.style.display = "flex";
-        labelWrapper.style.alignItems = "center";
-        labelWrapper.style.gap = "6px";
-        labelWrapper.style.flex = "1";
-        labelWrapper.style.minWidth = "100px";
+      const labelWrapper = document.createElement("div");
+      labelWrapper.style.display = "flex";
+      labelWrapper.style.alignItems = "center";
+      labelWrapper.style.gap = "6px";
+      labelWrapper.style.flex = "1";
+      labelWrapper.style.minWidth = "100px";
 
-        const label = document.createElement("div");
-        label.textContent = walletObj.label || `Wallet ${i + 1}`;
-        label.style.color = "white";
-        label.style.cursor = "pointer";
-        label.style.fontFamily = "Raleway, sans-serif";
-        label.style.fontSize = "16px";
-        label.style.overflow = "hidden";
-        label.style.textOverflow = "ellipsis";
-        label.style.whiteSpace = "nowrap";
-        label.style.maxWidth = "100px";
+      const label = document.createElement("div");
+      label.textContent = walletObj.label || `Wallet ${i + 1}`;
+      label.style.color = "white";
+      label.style.cursor = "pointer";
+      label.style.fontFamily = "Raleway, sans-serif";
+      label.style.fontSize = "16px";
+      label.style.overflow = "hidden";
+      label.style.textOverflow = "ellipsis";
+      label.style.whiteSpace = "nowrap";
+      label.style.maxWidth = "100px";
 
-        const editBtn = document.createElement("span");
-        editBtn.textContent = "✏️";
-        editBtn.style.cursor = "pointer";
-        editBtn.title = "Edit label";
+      const editBtn = document.createElement("span");
+      editBtn.textContent = "✏️";
+      editBtn.style.cursor = "pointer";
+      editBtn.style.fontSize = "16px";
+      editBtn.title = "Edit label";
 
-        const enterEditMode = () => {
-          const input = document.createElement("input");
-          input.value = walletObj.label || `Wallet ${i + 1}`;
-          input.style.width = "100px";
-          input.style.padding = "4px";
-          input.style.fontFamily = "Raleway, sans-serif";
-          input.onblur = () => {
-            wallets[i].label = input.value;
-            saveWallets(wallets);
-            renderWalletList();
-          };
-          input.onkeydown = (e) => {
-            if (e.key === "Enter") input.blur();
-          };
-          labelWrapper.replaceChild(input, label);
-          editBtn.style.display = "none";
-          input.focus();
-        };
-
-        label.ondblclick = enterEditMode;
-        editBtn.onclick = enterEditMode;
-
-        labelWrapper.appendChild(label);
-        labelWrapper.appendChild(editBtn);
-
-        const addr = document.createElement("div");
-        addr.textContent = walletObj.address;
-        addr.style.color = "gray";
-        addr.style.fontSize = "13px";
-        addr.style.flex = "2";
-        addr.style.overflowWrap = "break-word";
-
-        const delBtn = document.createElement("span");
-        delBtn.textContent = "❌";
-        delBtn.style.cursor = "pointer";
-        delBtn.style.color = "red";
-        delBtn.title = "Remove wallet";
-        delBtn.onclick = () => {
-          wallets.splice(i, 1);
+      const enterEditMode = () => {
+        const input = document.createElement("input");
+        input.value = wallets[i].label || `Wallet ${i + 1}`;
+        input.style.width = "100px";
+        input.style.padding = "4px";
+        input.style.fontFamily = "Raleway, sans-serif";
+        input.onblur = () => {
+          wallets[i].label = input.value;
           saveWallets(wallets);
           renderWalletList();
         };
+        input.onkeydown = (e) => {
+          if (e.key === "Enter") input.blur();
+        };
+        labelWrapper.replaceChild(input, label);
+        editBtn.style.display = "none";
+        input.focus();
+      };
 
-        row.appendChild(checkbox);
-        row.appendChild(labelWrapper);
-        row.appendChild(addr);
-        row.appendChild(delBtn);
-        walletListDiv.appendChild(row);
-      });
+      editBtn.onclick = enterEditMode;
+      label.ondblclick = enterEditMode;
 
-      // New wallet row
-      const addRow = document.createElement("div");
-      addRow.className = "add-wallet-row";
+      labelWrapper.appendChild(label);
+      labelWrapper.appendChild(editBtn);
 
-      const newLabel = document.createElement("input");
-      newLabel.placeholder = "Label (optional)";
-      const newAddress = document.createElement("input");
-      newAddress.placeholder = "0x wallet address";
+      const addr = document.createElement("div");
+      addr.textContent = walletObj.address;
+      addr.style.color = "gray";
+      addr.style.fontSize = "13px";
+      addr.style.flex = "2";
+      addr.style.overflowWrap = "break-word";
 
-      const addBtn = document.createElement("span");
-      addBtn.textContent = "+";
-      addBtn.title = "Add wallet";
-      addBtn.style.cursor = "pointer";
-      addBtn.style.fontSize = "40px";
-      addBtn.style.color = "#039112";
-      addBtn.onclick = () => {
-        const addr = newAddress.value.trim();
-        if (!addr.startsWith("0x") || addr.length !== 42) {
-          alert("Invalid wallet address.");
-          return;
-        }
-        wallets.push({ address: addr, label: newLabel.value.trim(), selected: true });
+      const delBtn = document.createElement("span");
+      delBtn.textContent = "❌";
+      delBtn.style.cursor = "pointer";
+      delBtn.style.color = "red";
+      delBtn.style.fontSize = "18px";
+      delBtn.title = "Remove wallet";
+      delBtn.onclick = () => {
+        wallets.splice(i, 1);
         saveWallets(wallets);
         renderWalletList();
       };
 
-      addRow.appendChild(newLabel);
-      addRow.appendChild(newAddress);
-      addRow.appendChild(addBtn);
-      walletListDiv.appendChild(addRow);
+      row.appendChild(checkbox);
+      row.appendChild(labelWrapper);
+      row.appendChild(addr);
+      row.appendChild(delBtn);
+      walletListDiv.appendChild(row);
+    });
+
+
+    // Add wallet row
+    const addRow = document.createElement("div");
+    addRow.style.display = "flex";
+    addRow.style.alignItems = "center";
+    addRow.style.gap = "8px";
+    addRow.style.marginTop = "20px";
+    addRow.style.flexWrap = "nowrap"; // prevents wrapping
+
+    const newLabel = document.createElement("input");
+    newLabel.placeholder = "Label (optional)";
+    newLabel.style.flex = "0 0 28%"; // Shorter fixed width (~28%)
+    newLabel.style.padding = "6px";
+    newLabel.style.minWidth = "0"; // Allows shrinking if necessary
+
+    const newAddress = document.createElement("input");
+    newAddress.placeholder = "0x wallet address";
+    newAddress.style.flex = "1 1 auto"; // Takes remaining space
+    newAddress.style.padding = "6px";
+    newAddress.style.minWidth = "150";
+
+    const addBtn = document.createElement("span");
+    addBtn.className = "wallet-add-btn";
+    addBtn.textContent = "+";
+    addBtn.style.cursor = "pointer";
+    addBtn.style.color = "#039112";
+    addBtn.style.fontSize = "40px";
+    addBtn.title = "Add wallet";
+    addBtn.style.display = "flex";
+    addBtn.style.alignItems = "center";
+    addBtn.style.justifyContent = "center";
+    addBtn.onclick = () => {
+      const addr = newAddress.value.trim();
+      if (!addr.startsWith("0x") || addr.length !== 42) return alert("Invalid wallet address.");
+      const label = newLabel.value.trim();
+      wallets.push({ address: addr, label: label || `Wallet ${wallets.length + 1}`, selected: true });
+      saveWallets(wallets);
+      renderWalletList();
     };
 
+    addRow.appendChild(newLabel);
+    addRow.appendChild(newAddress);
+    addRow.appendChild(addBtn);
+    walletListDiv.appendChild(addRow);
+
+    const chartModal = document.getElementById("chartModal");
+    const closeChartModal = document.getElementById("closeChartModal");
+    const chartIframe = document.getElementById("chartIframe");
+    const chartSpinner = document.getElementById("chartSpinner");
+
+    closeChartModal.onclick = () => {
+      chartModal.style.display = "none";
+      chartIframe.src = ""; // clear iframe
+      chartIframe.style.display = "none";
+    };
+
+    window.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal-overlay")) {
+        chartModal.style.display = "none";
+        chartIframe.src = "";
+        chartIframe.style.display = "none";
+      }
+    });
+
+    chartIframe.onload = () => {
+      chartSpinner.style.display = "none";
+      chartIframe.style.display = "block";
+    };
+
+  };
+
     renderWalletList();
+
     fetchBtn.onclick = async () => {
       const input = walletInput.value.trim();
       const wallets = input.split(",").map(w => w.trim()).filter(w => w.startsWith("0x") && w.length === 42);
-
+    
       if (wallets.length === 0) {
         resultDiv.innerHTML = `<p class="pepu-error">Please enter at least one valid wallet address.</p>`;
         return;
       }
-
+    
+      wallets.forEach(wallet => {
+        if (!savedWallets.includes(wallet)) {
+          savedWallets.unshift(wallet);
+        }
+      });
+      localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
+    
       dropdown.style.display = "none";
       resultDiv.innerHTML = `
         <div class="pepu-loading">
           <div>Loading portfolio</div>
           <div class="pepu-spinner" style="margin-top: 10px;"></div>
         </div>`;
-
+    
       const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
-      const savedWallets = JSON.parse(localStorage.getItem("pepu_wallets") || "[]");
-      wallets.forEach(wallet => {
-        if (!savedWallets.includes(wallet)) savedWallets.unshift(wallet);
-      });
-      localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
-
+    
       const fetchAll = async () => {
         const allPortfolio = {
           native_pepu: { amount: 0, price_usd: 0, total_usd: 0, icon: "" },
@@ -759,34 +848,35 @@ class PepuTracker extends HTMLElement {
         let lpPositions = [];
         let presale = null;
         let presaleUsdTotal = 0;
-
+    
         for (const wallet of wallets) {
           const [portfolio, lps, presales] = await Promise.all([
             fetch(`${baseUrl}/portfolio?wallet=${wallet}`).then(res => res.json()),
             fetch(`${baseUrl}/lp-positions?wallet=${wallet}`).then(res => res.json()),
             fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json())
           ]);
-
-          ["native_pepu", "staked_pepu", "unclaimed_rewards"].forEach(key => {
+    
+          // Combine PEPU native/staked/rewards
+          for (const key of ["native_pepu", "staked_pepu", "unclaimed_rewards"]) {
             allPortfolio[key].amount += portfolio[key].amount;
             allPortfolio[key].total_usd += portfolio[key].total_usd;
             allPortfolio[key].price_usd = portfolio[key].price_usd;
             allPortfolio[key].icon = portfolio[key].icon;
-          });
-
-          portfolio.tokens.forEach(token => {
+          }
+    
+          // Merge tokens by contract address
+          for (const token of portfolio.tokens) {
             if (!allTokens.has(token.contract)) {
               allTokens.set(token.contract, { ...token });
             } else {
-              const existing = allTokens.get(token.contract);
-              existing.amount += token.amount;
-              existing.total_usd += token.total_usd;
+              const t = allTokens.get(token.contract);
+              t.amount += token.amount;
+              t.total_usd += token.total_usd;
             }
-          });
-
+          }
+    
           allPortfolio.total_value_usd += portfolio.total_value_usd;
           lpPositions = lpPositions.concat(lps.lp_positions || []);
-
           if (presales.pesw) {
             if (!presale) {
               presale = { ...presales.pesw };
@@ -798,172 +888,153 @@ class PepuTracker extends HTMLElement {
             presaleUsdTotal += presales.total_value_usd || 0;
           }
         }
-
+    
         allPortfolio.tokens = Array.from(allTokens.values());
-        return {
-          portfolio: allPortfolio,
-          lps: {
-            lp_positions: lpPositions,
-            total_value_usd: lpPositions.reduce((sum, lp) => sum + (lp.amount0_usd + lp.amount1_usd), 0)
-          },
-          presales: { pesw: presale, total_value_usd: presaleUsdTotal }
-        };
+        return { portfolio: allPortfolio, lps: { lp_positions: lpPositions, total_value_usd: lpPositions.reduce((sum, lp) => sum + (lp.amount0_usd + lp.amount1_usd), 0) }, presales: { pesw: presale, total_value_usd: presaleUsdTotal } };
       };
-
+    
       const { portfolio, lps, presales } = await fetchAll();
-      let total = portfolio.total_value_usd;
 
-      if (!hideLPs.checked) total += lps.total_value_usd;
-      if (!hidePresales.checked) total += presales.total_value_usd;
+      fetchAll().then(({ portfolio, lps, presales }) => {
+        let total = portfolio.total_value_usd;
 
-      const hideSmallBalances = hideSmall.checked;
-      const renderCard = (label, item) => `
-        <div class="pepu-card pepu-main">
-          <div class="pepu-token-header">
-            <img src="${item.icon}" width="40" height="40" />
-            <div class="name">${label}</div>
+        const hideSmallBalances = hideSmall.checked;
+        const hideLP = hideLPs.checked;
+        const hidePresale = hidePresales.checked;
+
+        if (!hideLP) total += lps.total_value_usd || 0;
+        if (!hidePresale) total += presales.total_value_usd || 0;
+
+        let html = `
+          <div class="pepu-card total-card">
+            <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
+              Total Portfolio Value: ${formatUSD(total)}
+            </div>
+            <div class="animated-bar-wrapper">
+              ${[
+                { label: "PEPU", value: portfolio.native_pepu.total_usd + portfolio.staked_pepu.total_usd + portfolio.unclaimed_rewards.total_usd, color: "#039112" },
+                { label: "L2 Tokens", value: portfolio.tokens.reduce((sum, t) => sum + (hideSmallBalances && ((t.total_usd > 0 && t.total_usd < 1) || (t.total_usd === 0 && t.amount <= 1) || (t.warning && t.warning.toLowerCase().includes("low liquidity"))) ? 0 : t.total_usd), 0), color: "#F1BC4A" },
+                { label: "LPs", value: hideLP ? 0 : lps.total_value_usd, color: "#3395FF" },
+                { label: "Presales", value: hidePresale ? 0 : presales.total_value_usd, color: "#AA74E2" }
+              ]
+                .filter(seg => seg.value > 0)
+                .sort((a, b) => b.value - a.value)
+                .map((seg, index) => {
+                  const pct = total > 0 ? (seg.value / total * 100).toFixed(1) : "0.0";
+                  return `
+                    <div class="animated-segment" style="--bar-color: ${seg.color}; --bar-width: ${pct}%; animation-delay: ${index * 0.1}s;">
+                      <span>${pct}%<br><strong>${formatUSD(seg.value)}</strong><br>${seg.label}</span>
+                    </div>`;
+                }).join("")}
+            </div>
           </div>
-          <div class="amount">Amount: ${formatAmount(item.amount)}</div>
-          <div class="price">Price: ${formatPrice(item.price_usd)}</div>
-          <div class="price bold">Total: ${formatUSD(item.total_usd)}</div>
-        </div>`;
+          <div class="pepu-card-container">
+        `;
 
-      let html = `
-        <div class="pepu-card total-card">
-          <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
-            Total Portfolio Value: ${formatUSD(total)}
-          </div>
-          <div class="animated-bar-wrapper">
-            ${[
-              { label: "PEPU", value: portfolio.native_pepu.total_usd + portfolio.staked_pepu.total_usd + portfolio.unclaimed_rewards.total_usd, color: "#039112" },
-              { label: "L2 Tokens", value: portfolio.tokens.reduce((sum, t) => {
-                if (hideSmallBalances && ((t.total_usd > 0 && t.total_usd < 1) || (t.total_usd === 0 && t.amount <= 1) || (t.warning && t.warning.toLowerCase().includes("low liquidity")))) return sum;
-                return sum + t.total_usd;
-              }, 0), color: "#F1BC4A" },
-              { label: "LPs", value: hideLPs.checked ? 0 : lps.total_value_usd, color: "#3395FF" },
-              { label: "Presales", value: hidePresales.checked ? 0 : presales.total_value_usd, color: "#AA74E2" }
-            ].filter(seg => seg.value > 0).sort((a, b) => b.value - a.value).map((seg, i) => {
-              const pct = total > 0 ? (seg.value / total * 100).toFixed(1) : "0.0";
-              return `<div class="animated-segment" style="--bar-color: ${seg.color}; --bar-width: ${pct}%; animation-delay: ${i * 0.1}s;"><span>${pct}%<br><strong>${formatUSD(seg.value)}</strong><br>${seg.label}</span></div>`;
-            }).join("")}
-          </div>
-        </div>
-        <div class="pepu-card-container">`;
-
-      html += renderCard("Wallet PEPU", portfolio.native_pepu);
-      html += renderCard("Staked PEPU", portfolio.staked_pepu);
-      html += renderCard("Unclaimed Rewards", portfolio.unclaimed_rewards);
-      html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
-
-      portfolio.tokens.forEach(token => {
-        if (hideSmall.checked && (
-          (token.total_usd > 0 && token.total_usd < 1) ||
-          (token.total_usd === 0 && token.amount <= 10) ||
-          (token.warning && token.warning.toLowerCase().includes("low liquidity"))
-        )) return;
-
-        html += `
-          <div class="pepu-card">
+        const renderCard = (label, item) => `
+          <div class="pepu-card pepu-main">
             <div class="pepu-token-header">
-              <img src="${token.icon_url}" width="32" height="32" />
-              <strong class="name">
-                <a href="https://www.geckoterminal.com/pepe-unchained/pools/${token.contract}" target="_blank" style="text-decoration:none;color:#000;">
-                  ${token.name} (${token.symbol})
-                </a>
-              </strong>
+              <img src="${item.icon}" width="40" height="40" />
+              <div class="name">${label}</div>
             </div>
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <div>
-                <div class="amount">Amount: ${formatAmount(token.amount)}</div>
-                <div class="price">Price: ${formatPrice(token.price_usd)}</div>
-                <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
-                ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
-              </div>
-              <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
-                <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
-                <div class="change">
-                  <span class="chart-icon">🗗</span>
-                  24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">${token.price_change_24h_percentage.toFixed(2)}%</span>
-                </div>
-              </div>
-            </div>
+            <div class="amount">Amount: ${formatAmount(item.amount)}</div>
+            <div class="price">Price: ${formatPrice(item.price_usd)}</div>
+            <div class="price bold">Total: ${formatUSD(item.total_usd)}</div>
           </div>`;
-      });
 
-      html += `</div>`;
+        html += renderCard("Wallet PEPU", portfolio.native_pepu);
+        html += renderCard("Staked PEPU", portfolio.staked_pepu);
+        html += renderCard("Unclaimed Rewards", portfolio.unclaimed_rewards);
+        html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
 
-      if (!hideLPs.checked && lps.lp_positions.length > 0) {
-        html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
-        lps.lp_positions.forEach(lp => {
-          const totalUsd = lp.amount0_usd + lp.amount1_usd;
+        portfolio.tokens.forEach(token => {
+          if (hideSmall.checked && (
+            (token.total_usd > 0 && token.total_usd < 1) ||
+            (token.total_usd === 0 && token.amount <= 10) ||
+            (token.warning && token.warning.toLowerCase().includes("low liquidity"))
+          )) return;
+
           html += `
             <div class="pepu-card">
-              <div class="pepu-token-header" style="justify-content:center;">
-                <div class="name">${lp.lp_name}</div>
+              <div class="pepu-token-header">
+                <img src="${token.icon_url}" width="32" height="32" />
+                <strong class="name">
+                  <a href="https://www.geckoterminal.com/pepe-unchained/pools/${token.contract}" target="_blank" style="text-decoration:none;color:#000;">
+                    ${token.name} (${token.symbol})
+                  </a>
+                </strong>
               </div>
-              <div class="lp-row">
-                <div class="lp-tokens">
-                  <div class="lp-token"><img src="${lp.token0_icon}" /> ${lp.symbol0}: ${formatAmount(lp.amount0)}</div>
-                  <div class="lp-token"><img src="${lp.token1_icon}" /> ${lp.symbol1}: ${formatAmount(lp.amount1)}</div>
+              <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <div>
+                  <div class="amount">Amount: ${formatAmount(token.amount)}</div>
+                  <div class="price">Price: ${formatPrice(token.price_usd)}</div>
+                  <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
+                  ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
                 </div>
-                <div class="lp-total">Total: ${formatUSD(totalUsd)}</div>
+                <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
+                  <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
+                  <div class="change">
+                    <span class="chart-icon" data-contract="${token.contract}">🗗</span>
+                    24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
+                      ${token.price_change_24h_percentage.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
               </div>
-              ${lp.warning ? `<div style="color:red; margin-top: 6px;">⚠️ ${lp.warning}</div>` : ""}
             </div>`;
         });
+
         html += `</div>`;
-      }
 
-      const p = presales.pesw;
-      if (!hidePresales.checked && p && (p.deposited_tokens > 0 || p.staked_tokens > 0 || p.pending_rewards > 0)) {
-        const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
-        const currentUsd = totalTokens * p.current_price_usd;
-        const launchUsd = totalTokens * p.launch_price_usd;
+        if (!hideLP && lps.lp_positions.length > 0) {
+          html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
+          lps.lp_positions.forEach(lp => {
+            const totalUsd = lp.amount0_usd + lp.amount1_usd;
+            html += `
+              <div class="pepu-card">
+                <div class="pepu-token-header" style="justify-content:center;">
+                  <div class="name">${lp.lp_name}</div>
+                </div>
+                <div class="lp-row">
+                  <div class="lp-tokens">
+                    <div class="lp-token"><img src="${lp.token0_icon}" /> ${lp.symbol0}: ${formatAmount(lp.amount0)}</div>
+                    <div class="lp-token"><img src="${lp.token1_icon}" /> ${lp.symbol1}: ${formatAmount(lp.amount1)}</div>
+                  </div>
+                  <div class="lp-total">Total: ${formatUSD(totalUsd)}</div>
+                </div>
+                ${lp.warning ? `<div style="color:red; margin-top: 6px;">⚠️ ${lp.warning}</div>` : ""}
+              </div>`;
+          });
+          html += `</div>`;
+        }
 
-        html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
-        html += `
-          <div class="pepu-card">
-            <div class="pepu-token-header">
-              <img src="${p.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
-              <strong class="name">PESW Presale</strong>
+        const p = presales.pesw;
+        if (!hidePresale && p && (p.deposited_tokens > 0 || p.staked_tokens > 0 || p.pending_rewards > 0)) {
+          const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
+          const currentUsd = totalTokens * p.current_price_usd;
+          const launchUsd = totalTokens * p.launch_price_usd;
+
+          html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
+          html += `
+            <div class="pepu-card">
+              <div class="pepu-token-header">
+                <img src="${p.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
+                <strong class="name">PESW Presale</strong>
+              </div>
+              <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
+              <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
+              <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
+              <div class="price">Current Price: ${formatPrice(p.current_price_usd)}</div>
+              <div class="price">Launch Price: ${formatPrice(p.launch_price_usd)}</div>
+              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(currentUsd)}</div>
+              <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
             </div>
-            <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
-            <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
-            <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
-            <div class="price">Current Price: ${formatPrice(p.current_price_usd)}</div>
-            <div class="price">Launch Price: ${formatPrice(p.launch_price_usd)}</div>
-            <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(currentUsd)}</div>
-            <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
-          </div>
-        </div>`;
-      }
+          </div>`;
+        }
 
-      resultDiv.innerHTML = html;
+        resultDiv.innerHTML = html;
+      });
     };
-
-    const chartModal = this.querySelector("#chartModal");
-    const chartIframe = this.querySelector("#chartIframe");
-    const chartSpinner = this.querySelector("#chartSpinner");
-    const closeChartModal = this.querySelector("#closeChartModal");
-
-    chartIframe.onload = () => {
-      chartSpinner.style.display = "none";
-      chartIframe.style.display = "block";
-    };
-
-    closeChartModal.onclick = () => {
-      chartModal.style.display = "none";
-      chartIframe.src = "";
-      chartIframe.style.display = "none";
-    };
-
-    window.addEventListener("click", (e) => {
-      if (e.target.classList.contains("modal-overlay")) {
-        chartModal.style.display = "none";
-        chartIframe.src = "";
-        chartIframe.style.display = "none";
-      }
-    });
   }
 }
 
