@@ -11,7 +11,7 @@ class PepuTracker extends HTMLElement {
 
       .pepu-card-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 16px;
         justify-items: stretch;
       }
@@ -152,7 +152,7 @@ class PepuTracker extends HTMLElement {
       .pepu-button {
         padding: 10px 20px;
         font-size: 16px;
-        border-radius: 15px;
+        border-radius: 10px;
         border: 2px solid #000;
         background-color: #039112;
         color: white;
@@ -288,7 +288,6 @@ class PepuTracker extends HTMLElement {
         height: 42px; /* match input height */
         padding: 0 16px;
         font-size: 24px;
-        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -439,6 +438,45 @@ class PepuTracker extends HTMLElement {
           box-sizing: border-box;
         }
 
+        .pepu-card {
+          min-width: 0; /* allow shrinking */
+          width: 100%;
+        }
+
+        #fetchBtn {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .pepu-filters {
+          column-gap: 10px;
+          row-gap: 0px;
+          margin-top: 0;
+        }
+
+        #openWalletModal {
+          background: none;
+          border: none;
+          padding: 0;
+          width: auto;
+          height: auto;
+          box-shadow: none;
+          color: white;
+          font-size: 40px;
+          position: relative;
+          bottom: 2px;
+        }
+
+        #chartModal .modal-chart {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: none !important;
+          max-height: none !important;
+          border-radius: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box;
+        }
+
         #walletList > div {
           display: grid !important;
           grid-template-columns: auto 1fr auto;
@@ -472,8 +510,8 @@ class PepuTracker extends HTMLElement {
         }
 
         .wallet-add-btn {
-           position: relative;
-            bottom: 8px;
+          position: relative;
+          bottom: 8px;
         }
       }
     </style>
@@ -834,7 +872,7 @@ class PepuTracker extends HTMLElement {
           <div class="pepu-spinner" style="margin-top: 10px;"></div>
         </div>`;
     
-      const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
+      const baseUrl = "https://pepu-portfolio-tracker.onrender.com";
     
       const fetchAll = async () => {
         const allPortfolio = {
@@ -971,7 +1009,7 @@ class PepuTracker extends HTMLElement {
                   <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
                   ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
                 </div>
-                <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
+                <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('pepu-tracker').openChart('${token.contract}')">
                   <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
                   <div class="change">
                     <span class="chart-icon" data-contract="${token.contract}">🗗</span>
@@ -1038,4 +1076,4 @@ class PepuTracker extends HTMLElement {
   }
 }
 
-customElements.define("tracker-test", PepuTracker);
+customElements.define("pepu-tracker", PepuTracker);
