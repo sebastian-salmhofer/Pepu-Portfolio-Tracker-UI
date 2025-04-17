@@ -530,6 +530,7 @@ class PepuTracker extends HTMLElement {
             <div class="pepu-filters">
               <label><input type="checkbox" id="hideSmall" checked /> Hide small balances</label>
               <label><input type="checkbox" id="hideLPs" /> Hide LPs</label>
+              <label><input type="checkbox" id="hideStaking" /> Hide Staking Pools</label>
               <label><input type="checkbox" id="hidePresales" /> Hide Presales</label>
             </div>
           </div>
@@ -592,6 +593,7 @@ class PepuTracker extends HTMLElement {
     const hideSmall = this.querySelector("#hideSmall");
     const hideLPs = this.querySelector("#hideLPs");
     const hidePresales = this.querySelector("#hidePresales");
+    const hideStaking = this.querySelector("#hideStaking");
 
     const savedWallets = JSON.parse(localStorage.getItem("pepu_wallets") || "[]");
 
@@ -605,6 +607,11 @@ class PepuTracker extends HTMLElement {
 
     const formatUSD = (n) => n ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A";
     const formatPrice = (p) => p ? `$${p.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}` : "N/A";
+    const formatDuration = (seconds) => {
+      if (seconds >= 86400) return (seconds / 86400).toFixed(1) + " days";
+      if (seconds >= 3600) return (seconds / 3600).toFixed(1) + " hrs";
+      return (seconds / 60).toFixed(0) + " min";
+    };
 
     const updateDropdown = () => {
       dropdown.innerHTML = "";
@@ -852,28 +859,28 @@ class PepuTracker extends HTMLElement {
     fetchBtn.onclick = async () => {
       const input = walletInput.value.trim();
       const wallets = input.split(",").map(w => w.trim()).filter(w => w.startsWith("0x") && w.length === 42);
-    
+
       if (wallets.length === 0) {
         resultDiv.innerHTML = `<p class="pepu-error">Please enter at least one valid wallet address.</p>`;
         return;
       }
-    
+
       wallets.forEach(wallet => {
         if (!savedWallets.includes(wallet)) {
           savedWallets.unshift(wallet);
         }
       });
       localStorage.setItem("pepu_wallets", JSON.stringify(savedWallets));
-    
+
       dropdown.style.display = "none";
       resultDiv.innerHTML = `
         <div class="pepu-loading">
           <div>Loading portfolio</div>
           <div class="pepu-spinner" style="margin-top: 10px;"></div>
         </div>`;
-    
-      const baseUrl = "https://pepu-portfolio-tracker.onrender.com";
-    
+
+      const baseUrl = "https://pepu-portfolio-tracker-test.onrender.com";
+
       const fetchAll = async () => {
         const allPortfolio = {
           native_pepu: { amount: 0, price_usd: 0, total_usd: 0, icon: "" },
@@ -886,23 +893,24 @@ class PepuTracker extends HTMLElement {
         let lpPositions = [];
         let presale = null;
         let presaleUsdTotal = 0;
-    
+        let stakingPools = [];
+        let stakingUsdTotal = 0;
+
         for (const wallet of wallets) {
-          const [portfolio, lps, presales] = await Promise.all([
+          const [portfolio, lps, presales, staking] = await Promise.all([
             fetch(`${baseUrl}/portfolio?wallet=${wallet}`).then(res => res.json()),
             fetch(`${baseUrl}/lp-positions?wallet=${wallet}`).then(res => res.json()),
-            fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json())
+            fetch(`${baseUrl}/presales?wallet=${wallet}`).then(res => res.json()),
+            fetch(`${baseUrl}/staking?wallet=${wallet}`).then(res => res.json())
           ]);
-    
-          // Combine PEPU native/staked/rewards
+
           for (const key of ["native_pepu", "staked_pepu", "unclaimed_rewards"]) {
             allPortfolio[key].amount += portfolio[key].amount;
             allPortfolio[key].total_usd += portfolio[key].total_usd;
             allPortfolio[key].price_usd = portfolio[key].price_usd;
             allPortfolio[key].icon = portfolio[key].icon;
           }
-    
-          // Merge tokens by contract address
+
           for (const token of portfolio.tokens) {
             if (!allTokens.has(token.contract)) {
               allTokens.set(token.contract, { ...token });
@@ -912,7 +920,7 @@ class PepuTracker extends HTMLElement {
               t.total_usd += token.total_usd;
             }
           }
-    
+
           allPortfolio.total_value_usd += portfolio.total_value_usd;
           lpPositions = lpPositions.concat(lps.lp_positions || []);
           if (presales.pesw) {
@@ -925,155 +933,194 @@ class PepuTracker extends HTMLElement {
             }
             presaleUsdTotal += presales.total_value_usd || 0;
           }
+
+          stakingPools = stakingPools.concat(staking.staking_pools || []);
+          stakingUsdTotal += staking.total_value_usd || 0;
         }
-    
+
         allPortfolio.tokens = Array.from(allTokens.values());
-        return { portfolio: allPortfolio, lps: { lp_positions: lpPositions, total_value_usd: lpPositions.reduce((sum, lp) => sum + (lp.amount0_usd + lp.amount1_usd), 0) }, presales: { pesw: presale, total_value_usd: presaleUsdTotal } };
+
+        return {
+          portfolio: allPortfolio,
+          lps: { lp_positions: lpPositions, total_value_usd: lpPositions.reduce((sum, lp) => sum + (lp.amount0_usd + lp.amount1_usd), 0) },
+          presales: { pesw: presale, total_value_usd: presaleUsdTotal },
+          staking: { staking_pools: stakingPools, total_value_usd: stakingUsdTotal }
+        };
       };
-    
-      const { portfolio, lps, presales } = await fetchAll();
 
-      fetchAll().then(({ portfolio, lps, presales }) => {
-        let total = portfolio.total_value_usd;
+      const { portfolio, lps, presales, staking } = await fetchAll();
 
-        const hideSmallBalances = hideSmall.checked;
-        const hideLP = hideLPs.checked;
-        const hidePresale = hidePresales.checked;
+      let total = portfolio.total_value_usd;
 
-        if (!hideLP) total += lps.total_value_usd || 0;
-        if (!hidePresale) total += presales.total_value_usd || 0;
+      const hideSmallBalances = hideSmall.checked;
+      const hideLP = hideLPs.checked;
+      const hidePresale = hidePresales.checked;
 
-        let html = `
-          <div class="pepu-card total-card">
-            <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
-              Total Portfolio Value: ${formatUSD(total)}
-            </div>
-            <div class="animated-bar-wrapper">
-              ${[
-                { label: "PEPU", value: portfolio.native_pepu.total_usd + portfolio.staked_pepu.total_usd + portfolio.unclaimed_rewards.total_usd, color: "#039112" },
-                { label: "L2 Tokens", value: portfolio.tokens.reduce((sum, t) => sum + (hideSmallBalances && ((t.total_usd > 0 && t.total_usd < 1) || (t.total_usd === 0 && t.amount <= 1) || (t.warning && t.warning.toLowerCase().includes("low liquidity"))) ? 0 : t.total_usd), 0), color: "#F1BC4A" },
-                { label: "LPs", value: hideLP ? 0 : lps.total_value_usd, color: "#3395FF" },
-                { label: "Presales", value: hidePresale ? 0 : presales.total_value_usd, color: "#AA74E2" }
-              ]
-                .filter(seg => seg.value > 0)
-                .sort((a, b) => b.value - a.value)
-                .map((seg, index) => {
-                  const pct = total > 0 ? (seg.value / total * 100).toFixed(1) : "0.0";
-                  return `
-                    <div class="animated-segment" style="--bar-color: ${seg.color}; --bar-width: ${pct}%; animation-delay: ${index * 0.1}s;">
-                      <span>${pct}%<br><strong>${formatUSD(seg.value)}</strong><br>${seg.label}</span>
-                    </div>`;
-                }).join("")}
-            </div>
+      if (!hideLP) total += lps.total_value_usd || 0;
+      if (!hideStaking.checked) total += staking.total_value_usd || 0;
+      if (!hidePresale) total += presales.total_value_usd || 0;
+
+      let html = `
+        <div class="pepu-card total-card">
+          <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
+            Total Portfolio Value: ${formatUSD(total)}
           </div>
-          <div class="pepu-card-container">
-        `;
+          <div class="animated-bar-wrapper">
+            ${[
+              { label: "PEPU", value: portfolio.native_pepu.total_usd + portfolio.staked_pepu.total_usd + portfolio.unclaimed_rewards.total_usd, color: "#039112" },
+              { label: "L2 Tokens", value: portfolio.tokens.reduce((sum, t) => (hideSmallBalances && ((t.total_usd > 0 && t.total_usd < 1) || (t.total_usd === 0 && t.amount <= 1) || (t.warning && t.warning.toLowerCase().includes("low liquidity")))) ? sum : sum + t.total_usd, 0) + (hideStaking.checked ? 0 : staking.total_value_usd || 0), color: "#F1BC4A" },
+              { label: "LPs", value: hideLP ? 0 : lps.total_value_usd, color: "#3395FF" },
+              { label: "Presales", value: hidePresale ? 0 : presales.total_value_usd, color: "#AA74E2" }
+            ]
+              .filter(seg => seg.value > 0)
+              .sort((a, b) => b.value - a.value)
+              .map((seg, index) => {
+                const pct = total > 0 ? (seg.value / total * 100).toFixed(1) : "0.0";
+                return `
+                  <div class="animated-segment" style="--bar-color: ${seg.color}; --bar-width: ${pct}%; animation-delay: ${index * 0.1}s;">
+                    <span>${pct}%<br><strong>${formatUSD(seg.value)}</strong><br>${seg.label}</span>
+                  </div>`;
+              }).join("")}
+          </div>
+        </div>
+        <div class="pepu-card-container">
+      `;
 
-        const renderCard = (label, item) => `
-          <div class="pepu-card pepu-main">
+      const renderCard = (label, item) => `
+        <div class="pepu-card pepu-main">
+          <div class="pepu-token-header">
+            <img src="${item.icon}" width="40" height="40" />
+            <div class="name">${label}</div>
+          </div>
+          <div class="amount">Amount: ${formatAmount(item.amount)}</div>
+          <div class="price">Price: ${formatPrice(item.price_usd)}</div>
+          <div class="price bold">Total: ${formatUSD(item.total_usd)}</div>
+        </div>`;
+
+      html += renderCard("Wallet PEPU", portfolio.native_pepu);
+      html += renderCard("Staked PEPU", portfolio.staked_pepu);
+      html += renderCard("Unclaimed Rewards", portfolio.unclaimed_rewards);
+      html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
+
+      portfolio.tokens.forEach(token => {
+        if (hideSmall.checked && (
+          (token.total_usd > 0 && token.total_usd < 1) ||
+          (token.total_usd === 0 && token.amount <= 10) ||
+          (token.warning && token.warning.toLowerCase().includes("low liquidity"))
+        )) return;
+
+        html += `
+          <div class="pepu-card">
             <div class="pepu-token-header">
-              <img src="${item.icon}" width="40" height="40" />
-              <div class="name">${label}</div>
+              <img src="${token.icon_url}" width="32" height="32" />
+              <strong class="name">
+                <a href="https://www.geckoterminal.com/pepe-unchained/pools/${token.contract}" target="_blank" style="text-decoration:none;color:#000;">
+                  ${token.name} (${token.symbol})
+                </a>
+              </strong>
             </div>
-            <div class="amount">Amount: ${formatAmount(item.amount)}</div>
-            <div class="price">Price: ${formatPrice(item.price_usd)}</div>
-            <div class="price bold">Total: ${formatUSD(item.total_usd)}</div>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <div>
+                <div class="amount">Amount: ${formatAmount(token.amount)}</div>
+                <div class="price">Price: ${formatPrice(token.price_usd)}</div>
+                <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
+                ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
+              </div>
+              <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('tracker-test').openChart('${token.contract}')">
+                <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
+                <div class="change">
+                  <span class="chart-icon" data-contract="${token.contract}">🗗</span>
+                  24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
+                    ${token.price_change_24h_percentage.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>`;
+      });
 
-        html += renderCard("Wallet PEPU", portfolio.native_pepu);
-        html += renderCard("Staked PEPU", portfolio.staked_pepu);
-        html += renderCard("Unclaimed Rewards", portfolio.unclaimed_rewards);
-        html += `</div><div class="pepu-card-container" style="margin-top: 30px;">`;
+      html += `</div>`;
 
-        portfolio.tokens.forEach(token => {
-          if (hideSmall.checked && (
-            (token.total_usd > 0 && token.total_usd < 1) ||
-            (token.total_usd === 0 && token.amount <= 10) ||
-            (token.warning && token.warning.toLowerCase().includes("low liquidity"))
-          )) return;
+      if (!hideLP && lps.lp_positions.length > 0) {
+        html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
+        lps.lp_positions.forEach(lp => {
+          const totalUsd = lp.amount0_usd + lp.amount1_usd;
+          html += `
+            <div class="pepu-card">
+              <div class="pepu-token-header" style="justify-content:center;">
+                <div class="name">${lp.lp_name}</div>
+              </div>
+              <div class="lp-row">
+                <div class="lp-tokens">
+                  <div class="lp-token"><img src="${lp.token0_icon}" /> ${lp.symbol0}: ${formatAmount(lp.amount0)}</div>
+                  <div class="lp-token"><img src="${lp.token1_icon}" /> ${lp.symbol1}: ${formatAmount(lp.amount1)}</div>
+                </div>
+                <div class="lp-total">Total: ${formatUSD(totalUsd)}</div>
+              </div>
+              ${lp.warning ? `<div style="color:red; margin-top: 6px;">⚠️ ${lp.warning}</div>` : ""}
+            </div>`;
+        });
+        html += `</div>`;
+      }
+
+      const visibleStakingPools = staking.staking_pools.filter(pool => pool.staked_amount > 0);
+
+      if (!hideStaking.checked && visibleStakingPools.length > 0) {
+        html += `<div class="lp-title">Staking Pools</div><div class="pepu-card-container">`;
+
+        visibleStakingPools.forEach(pool => {
+          const apyText = pool.apy ? `${pool.apy.toFixed(2)}%` : "N/A";
+          const lockDurationText = pool.lock_duration === 0 ? "N/A" : formatDuration(pool.lock_duration);
+          const showRemaining = pool.lock_duration !== 0;
+          const remainingLockText = formatDuration(pool.remaining_lock_time);
+          const totalUSD = formatUSD(pool.total_value_usd);
 
           html += `
             <div class="pepu-card">
               <div class="pepu-token-header">
-                <img src="${token.icon_url}" width="32" height="32" />
-                <strong class="name">
-                  <a href="https://www.geckoterminal.com/pepe-unchained/pools/${token.contract}" target="_blank" style="text-decoration:none;color:#000;">
-                    ${token.name} (${token.symbol})
-                  </a>
-                </strong>
+                <img src="${pool.icon_url}" width="32" height="32" />
+                <strong class="name">${pool.pool_name}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; gap: 10px;">
-                <div>
-                  <div class="amount">Amount: ${formatAmount(token.amount)}</div>
-                  <div class="price">Price: ${formatPrice(token.price_usd)}</div>
-                  <div class="price bold">Total: ${formatUSD(token.total_usd)}</div>
-                  ${token.warning ? `<div style="color:red;">⚠️ ${token.warning}</div>` : ""}
-                </div>
-                <div class="token-stats" style="cursor:pointer;" onclick="document.querySelector('pepu-tracker').openChart('${token.contract}')">
-                  <div>VOL 24h: <span>${formatAmount(token.volume_24h_usd)}</span></div>
-                  <div class="change">
-                    <span class="chart-icon" data-contract="${token.contract}">🗗</span>
-                    24h: <span class="${token.price_change_24h_percentage >= 0 ? 'up' : 'down'}">
-                      ${token.price_change_24h_percentage.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <div class="amount">Amount staked: ${formatAmount(pool.staked_amount)}</div>
+              <div class="amount">Pending rewards: ${formatAmount(pool.pending_rewards)}</div>
+              <div class="amount">APY: ${apyText}</div>
+              <div class="amount">Lock duration: ${lockDurationText}</div>
+              ${showRemaining ? `<div class="amount">Remaining lock time: ${remainingLockText}</div>` : ""}
+              <div class="price">Price: ${formatPrice(pool.price_usd)}</div>
+              <div class="price bold" style="margin-top: 8px;">Total: ${totalUSD}</div>
             </div>`;
         });
 
         html += `</div>`;
+      }
 
-        if (!hideLP && lps.lp_positions.length > 0) {
-          html += `<div class="lp-title">Liquidity Pool Positions</div><div class="pepu-card-container">`;
-          lps.lp_positions.forEach(lp => {
-            const totalUsd = lp.amount0_usd + lp.amount1_usd;
-            html += `
-              <div class="pepu-card">
-                <div class="pepu-token-header" style="justify-content:center;">
-                  <div class="name">${lp.lp_name}</div>
-                </div>
-                <div class="lp-row">
-                  <div class="lp-tokens">
-                    <div class="lp-token"><img src="${lp.token0_icon}" /> ${lp.symbol0}: ${formatAmount(lp.amount0)}</div>
-                    <div class="lp-token"><img src="${lp.token1_icon}" /> ${lp.symbol1}: ${formatAmount(lp.amount1)}</div>
-                  </div>
-                  <div class="lp-total">Total: ${formatUSD(totalUsd)}</div>
-                </div>
-                ${lp.warning ? `<div style="color:red; margin-top: 6px;">⚠️ ${lp.warning}</div>` : ""}
-              </div>`;
-          });
-          html += `</div>`;
-        }
+      const p = presales.pesw;
+      if (!hidePresale && p && (p.deposited_tokens > 0 || p.staked_tokens > 0 || p.pending_rewards > 0)) {
+        const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
+        const currentUsd = totalTokens * p.current_price_usd;
+        const launchUsd = totalTokens * p.launch_price_usd;
 
-        const p = presales.pesw;
-        if (!hidePresale && p && (p.deposited_tokens > 0 || p.staked_tokens > 0 || p.pending_rewards > 0)) {
-          const totalTokens = p.deposited_tokens + p.staked_tokens + p.pending_rewards;
-          const currentUsd = totalTokens * p.current_price_usd;
-          const launchUsd = totalTokens * p.launch_price_usd;
-
-          html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
-          html += `
-            <div class="pepu-card">
-              <div class="pepu-token-header">
-                <img src="${p.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
-                <strong class="name">PESW Presale</strong>
-              </div>
-              <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
-              <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
-              <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
-              <div class="price">Current Price: ${formatPrice(p.current_price_usd)}</div>
-              <div class="price">Launch Price: ${formatPrice(p.launch_price_usd)}</div>
-              <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(currentUsd)}</div>
-              <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
+        html += `<div class="lp-title">Token Presales</div><div class="pepu-card-container">`;
+        html += `
+          <div class="pepu-card">
+            <div class="pepu-token-header">
+              <img src="${p.icon || 'https://placehold.co/32x32'}" width="32" height="32" />
+              <strong class="name">PESW Presale</strong>
             </div>
-          </div>`;
-        }
+            <div class="amount">Amount: ${formatAmount(p.deposited_tokens)}</div>
+            <div class="amount">Staked: ${formatAmount(p.staked_tokens)}</div>
+            <div class="amount">Rewards: ${formatAmount(p.pending_rewards)}</div>
+            <div class="price">Current Price: ${formatPrice(p.current_price_usd)}</div>
+            <div class="price">Launch Price: ${formatPrice(p.launch_price_usd)}</div>
+            <div class="price bold" style="margin-top: 8px;">Total: ${formatUSD(currentUsd)}</div>
+            <div class="price">Total at launch: ${formatUSD(launchUsd)}</div>
+          </div>
+        </div>`;
+      }
 
-        resultDiv.innerHTML = html;
-      });
+      resultDiv.innerHTML = html;
     };
   }
 }
 
-customElements.define("pepu-tracker", PepuTracker);
+customElements.define("tracker-test", PepuTracker);
