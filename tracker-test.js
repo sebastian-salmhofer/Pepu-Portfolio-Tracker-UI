@@ -1,3 +1,4 @@
+
 class PepuTracker extends HTMLElement {
   connectedCallback() {
     this.render();
@@ -380,6 +381,51 @@ class PepuTracker extends HTMLElement {
         height: 85%;
       }
 
+      #historyModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      #historyModal .modal-overlay {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1;
+      }
+
+      #historyModal .modal-chart {
+        position: relative;
+        background-color: #000;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        z-index: 2;
+        width: 95%;
+        height: 85%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      #closeHistoryModal {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        color: #F1BC4A;
+        cursor: pointer;
+        z-index: 3;
+      }
+
       .animated-bar-wrapper {
         display: flex;
         height: 60px;
@@ -563,6 +609,15 @@ class PepuTracker extends HTMLElement {
           </div>
         </div>
       </div>
+
+      <!-- Portfolio History Modal -->
+      <div id="historyModal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-chart">
+          <span class="close-modal" id="closeHistoryModal">&times;</span>
+          <div id="historyContent" style="color:white;">Loading history...</div>
+        </div>
+      </div>
     `;
   }
 
@@ -575,6 +630,14 @@ class PepuTracker extends HTMLElement {
     chartSpinner.style.display = "block";
     chartIframe.src = `https://www.geckoterminal.com/pepe-unchained/pools/${contractAddress}?embed=1&info=0&swaps=0&grayscale=1&light_chart=0`;
     chartModal.style.display = "flex";
+  }
+
+  openHistoryChart() {
+    const historyModal = this.querySelector("#historyModal");
+    const historyContent = this.querySelector("#historyContent");
+
+    historyModal.style.display = "flex";
+    historyContent.innerHTML = "<div class='pepu-spinner'></div>"; // placeholder
   }
 
   setup() {
@@ -852,6 +915,20 @@ class PepuTracker extends HTMLElement {
       chartIframe.style.display = "block";
     };
 
+    const historyModal = this.querySelector("#historyModal");
+    const closeHistoryModal = this.querySelector("#closeHistoryModal");
+    const historyContent = this.querySelector("#historyContent");
+
+    closeHistoryModal.onclick = () => {
+      historyModal.style.display = "none";
+    };
+
+    window.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal-overlay")) {
+        historyModal.style.display = "none";
+      }
+    });
+
   };
 
     renderWalletList();
@@ -964,6 +1041,10 @@ class PepuTracker extends HTMLElement {
         <div class="pepu-card total-card">
           <div style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">
             Total Portfolio Value: ${formatUSD(total)}
+            <span class="chart-icon" style="cursor:pointer; font-size:16px; font-weight:normal; margin-left:10px; text-decoration:underline; color:#F1BC4A;"
+              onclick="document.querySelector('tracker-test').openHistoryChart()">
+              Show History
+            </span>
           </div>
           <div class="animated-bar-wrapper">
             ${[
