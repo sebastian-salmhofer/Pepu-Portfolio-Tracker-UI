@@ -80,6 +80,13 @@ class PepuTracker extends HTMLElement {
       s.onload = () => console.log("Chart.js loaded");
       document.head.appendChild(s);
     }
+
+    if (!document.querySelector("#chartjs-zoom")) {
+      const z = document.createElement("script");
+      z.id = "chartjs-zoom";
+      z.src = "https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js";
+      document.head.appendChild(z);
+    }
   }
 
   openChart(contractAddress) {
@@ -110,52 +117,34 @@ class PepuTracker extends HTMLElement {
     const signatureData = JSON.parse(localStorage.getItem("pepu_history_signature") || "{}");
     const isSigned = signatureData.address && signatureData.signature;
 
-    // Fetch portfolio to check PBTC access
-    fetch(`https://pepu-portfolio-tracker-test.onrender.com/portfolio?wallet=${wallets[0]}`)
-      .then(res => res.json())
-      .then(portfolio => {
-        const hasPBTCAccess = (portfolio.tokens || []).some(t => t.symbol === "PBTC" && t.amount >= 2_000_000);
+    if (!isSigned) {
+      this.historyContent.innerHTML = `
+        <p style="color:white;">✍️ This is a premium feature. Please sign a message with a wallet that holds at least 2M PBTC to unlock access.</p>
+        <button class="pepu-button" id="signAccessBtn">Sign to unlock</button>
+      `;
+      setTimeout(() => {
+        document.getElementById("signAccessBtn").onclick = async () => {
+          if (!window.ethereum) {
+            alert("MetaMask is required.");
+            return;
+          }
+          const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+          const address = accounts[0];
+          const message = `Access portfolio history for ${address}`;
+          const signature = await window.ethereum.request({
+            method: "personal_sign",
+            params: [message, address],
+          });
+          localStorage.setItem("pepu_history_signature", JSON.stringify({ address, signature }));
+          alert("Signature saved. Reopen history modal to continue.");
+          this.querySelector("#historyModal").style.display = "none";
+        };
+      }, 100);
+      return;
+    }
 
-        if (!hasPBTCAccess) {
-          this.historyContent.innerHTML = `
-            <p style="color:white;">🚫 This feature is only available to wallets holding at least <strong>2M PBTC</strong>.</p>
-          `;
-          return;
-        }
-
-        if (!isSigned) {
-          this.historyContent.innerHTML = `
-            <p style="color:white;">✍️ This is a premium feature. Please sign a message to unlock access.</p>
-            <button class="pepu-button" id="signAccessBtn">Sign to unlock</button>
-          `;
-          setTimeout(() => {
-            document.getElementById("signAccessBtn").onclick = async () => {
-              if (!window.ethereum) {
-                alert("MetaMask is required.");
-                return;
-              }
-              const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-              const address = accounts[0];
-              const message = `Access portfolio history for ${address}`;
-              const signature = await window.ethereum.request({
-                method: "personal_sign",
-                params: [message, address],
-              });
-              localStorage.setItem("pepu_history_signature", JSON.stringify({ address, signature }));
-              alert("Signature saved. Reopen history modal to continue.");
-              historyModal.style.display = "none";
-            };
-          }, 100);
-          return;
-        }
-
-        // ✅ If signed and has access, render chart
-        this.renderHistoryChart(wallets, signatureData);
-      })
-      .catch(err => {
-        console.error("Error checking PBTC access:", err);
-        this.historyContent.innerHTML = `<p style="color:red;">Failed to load history access info.</p>`;
-      });
+    // ✅ If signed, always try rendering — backend will check PBTC balance
+    this.renderHistoryChart(wallets, signatureData);
   }
 
 
@@ -758,28 +747,71 @@ class PepuTracker extends HTMLElement {
       return;
     }
 
-    const labels = history.map(d => new Date(d.timestamp).toLocaleTimeString());
-    const pepu = history.map(d => d.pepu_usd);
-    const tokens = history.map(d => d.l2_usd);
-    const lps = history.map(d => d.lp_usd);
-    const presales = history.map(d => d.presale_usd);
-    const total = history.map(d => d.pepu_usd + d.l2_usd + d.lp_usd + d.presale_usd);
-
-    this.historyContent.innerHTML = `<canvas id="historyChart" style="max-width:100%; max-height:100%;"></canvas>`;
+    this.historyContent.innerHTML = `
+      <div style="display: flex; flex-direction: column; width: 100%; height: 100%;">
+        <div style="flex: 1;">
+          <canvas id="historyChart" style="width: 100%; height: 100%;"></canvas>
+        </div>
+        <div id="historyControls" class="chart-controls-wrapper" style="margin-top: 10px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px; padding: 10px;">
+          <div class="time-buttons" style="display: flex; gap: 8px;">
+            <button class="chart-range-btn" data-range="all">All</button>
+            <button class="chart-range-btn" data-range="90">90d</button>
+            <button class="chart-range-btn" data-range="30">30d</button>
+            <button class="chart-range-btn active" data-range="7">7d</button>
+            <button class="chart-range-btn" data-range="1">24h</button>
+          </div>
+          <div class="filter-checkboxes" style="display: flex; gap: 12px; font-size: 14px;">
+            <label class="chart-filter"><input type="checkbox" checked data-key="total"> Total</label>
+            <label class="chart-filter"><input type="checkbox" data-key="pepu"> PEPU</label>
+            <label class="chart-filter"><input type="checkbox" data-key="l2"> L2 Tokens</label>
+            <label class="chart-filter"><input type="checkbox" data-key="lp"> LPs</label>
+            <label class="chart-filter"><input type="checkbox" data-key="presale"> Presales</label>
+          </div>
+        </div>
+      </div>
+    `;
 
     const ctx = this.querySelector("#historyChart").getContext("2d");
 
-    new window.Chart(ctx, {
+    let currentRange = "7";
+    let activeFilters = { total: true, pepu: false, l2: false, lp: false, presale: false };
+
+    const applyChartFilters = () => {
+      const now = Date.now();
+      let filtered = [...history];
+
+      if (currentRange !== "all") {
+        const cutoff = now - Number(currentRange) * 24 * 3600 * 1000;
+        filtered = filtered.filter(d => new Date(d.timestamp).getTime() >= cutoff);
+      }
+
+      const labels = filtered.map(d => new Date(d.timestamp).toLocaleString());
+      const datasets = [];
+
+      if (activeFilters.total) {
+        datasets.push({
+          label: "Total",
+          data: filtered.map(d => d.pepu_usd + d.l2_usd + d.lp_usd + d.presale_usd),
+          borderColor: "#ffffff",
+          borderWidth: 2,
+          tension: 0.3
+        });
+      }
+      if (activeFilters.pepu) datasets.push({ label: "PEPU", data: filtered.map(d => d.pepu_usd), borderColor: "#039112", tension: 0.3 });
+      if (activeFilters.l2) datasets.push({ label: "L2 Tokens", data: filtered.map(d => d.l2_usd), borderColor: "#F1BC4A", tension: 0.3 });
+      if (activeFilters.lp) datasets.push({ label: "LPs", data: filtered.map(d => d.lp_usd), borderColor: "#3395FF", tension: 0.3 });
+      if (activeFilters.presale) datasets.push({ label: "Presales", data: filtered.map(d => d.presale_usd), borderColor: "#AA74E2", tension: 0.3 });
+
+      chart.data.labels = labels;
+      chart.data.datasets = datasets;
+      chart.update();
+    };
+
+    const chart = new window.Chart(ctx, {
       type: "line",
       data: {
-        labels,
-        datasets: [
-          { label: "Total", data: total, borderColor: "#ffffff", borderWidth: 2, tension: 0.3 },
-          { label: "PEPU", data: pepu, borderColor: "#039112", tension: 0.3 },
-          { label: "L2 Tokens", data: tokens, borderColor: "#F1BC4A", tension: 0.3 },
-          { label: "LPs", data: lps, borderColor: "#3395FF", tension: 0.3 },
-          { label: "Presales", data: presales, borderColor: "#AA74E2", tension: 0.3 },
-        ]
+        labels: history.map(d => new Date(d.timestamp).toLocaleString()),
+        datasets: []
       },
       options: {
         responsive: true,
@@ -800,6 +832,21 @@ class PepuTracker extends HTMLElement {
           tooltip: {
             mode: 'index',
             intersect: false
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'x',
+              modifierKey: null
+            },
+            zoom: {
+              wheel: { enabled: true },
+              pinch: { enabled: true },
+              mode: 'x'
+            },
+            limits: {
+              x: { min: 'original', max: 'original' }
+            }
           }
         },
         scales: {
@@ -808,14 +855,42 @@ class PepuTracker extends HTMLElement {
             grid: { color: "rgba(255,255,255,0.1)" }
           },
           y: {
-            ticks: { color: "white" },
+            ticks: {
+              color: "white",
+              callback: function (value) {
+                return `$${value.toLocaleString()}`;
+              }
+            },
+            title: {
+              display: false,
+              text: "USD",
+              color: "white",
+              font: { size: 14 }
+            },
             grid: { color: "rgba(255,255,255,0.1)" }
           }
         }
       }
     });
-  }
 
+    applyChartFilters();
+
+    this.querySelectorAll(".chart-range-btn").forEach(btn => {
+      btn.onclick = () => {
+        this.querySelectorAll(".chart-range-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentRange = btn.dataset.range;
+        applyChartFilters();
+      };
+    });
+
+    this.querySelectorAll("input[type='checkbox'][data-key]").forEach(cb => {
+      cb.onchange = () => {
+        activeFilters[cb.dataset.key] = cb.checked;
+        applyChartFilters();
+      };
+    });
+  }
 
 
 }
