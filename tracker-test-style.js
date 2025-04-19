@@ -328,7 +328,6 @@ export const trackerStyle = `
     padding: 30px;
     z-index: 2;
     width: 90%;
-    max-width: 500px;
     max-height: 80%;
     overflow-y: auto;
     }
@@ -393,19 +392,21 @@ export const trackerStyle = `
     }
 
     #historyModal .modal-chart {
-    position: relative;
-    background-color: #000;
-    border: 3px solid #F1BC4A;
-    border-radius: 15px;
-    z-index: 2;
-    width: 95%;
-    height: 85%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-sizing: border-box;
+        position: relative;
+        background-color: #000;
+        border: 3px solid #F1BC4A;
+        border-radius: 15px;
+        z-index: 2;
+        width: 95%;
+        height: 85%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        overflow: hidden;
     }
+
 
     #closeHistoryModal {
     position: absolute;
@@ -416,6 +417,64 @@ export const trackerStyle = `
     cursor: pointer;
     z-index: 3;
     }
+
+    #historyChart {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+    }
+
+    #historyContent {
+        width: 100%;
+        height: 100%;
+        padding: 15px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chart-controls-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 20px;
+        flex-direction: row;
+        font-family: 'Raleway', sans-serif;
+        }
+
+        .chart-range-btn {
+        background: #000;
+        border: 2px solid #F1BC4A;
+        color: white;
+        font-size: 15px;
+        padding: 6px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        }
+
+        .chart-range-btn.active {
+        background-color: #039112;
+        color: white;
+        }
+
+        .chart-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: white;
+        font-size: 14px;
+        margin-left: 10px;
+        }
+
+        .chart-filter input[type="checkbox"] {
+        accent-color: #F1BC4A;
+        transform: scale(1.2);
+        cursor: pointer;
+        }
 
     .animated-bar-wrapper {
     display: flex;
