@@ -550,45 +550,6 @@ class PepuTracker extends HTMLElement {
       const signatureData = JSON.parse(localStorage.getItem("pepu_history_signature") || "{}");
       const isSigned = signatureData.address && signatureData.signature;
 
-      if (hasPBTCAccess) {
-        if (!isSigned) {
-          this.openHistoryChart(); // this sets and shows the modal
-          this.historyContent.innerHTML = `
-            <p style="color:white; font-family:'Poppins', sans-serif; font-size:16px;">
-              ✍️ This is a premium feature. Please sign a message to unlock access.
-            </p>
-            <button class="pepu-button" id="signAccessBtn">Sign to unlock</button>
-          `;
-          setTimeout(() => {
-            document.getElementById("signAccessBtn").onclick = async () => {
-              if (!window.ethereum) {
-                alert("MetaMask is required.");
-                return;
-              }
-              const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-              const address = accounts[0];
-              const message = `Access portfolio history for ${address}`;
-              const signature = await window.ethereum.request({
-                method: "personal_sign",
-                params: [message, address],
-              });
-              localStorage.setItem("pepu_history_signature", JSON.stringify({ address, signature }));
-              alert("Signature saved. Reopen history modal to continue.");
-              document.getElementById("historyModal").style.display = "none";
-            };
-          }, 100);
-        } else {
-          // ✅ Call function to load and render chart
-          this.renderHistoryChart(wallets, signatureData);
-        }
-      } else {
-        this.historyContent.innerHTML = `
-          <p style="color:white; font-family:'Poppins', sans-serif; font-size:16px;">
-            🚫 This feature is only available to wallets holding at least <strong>2M PBTC</strong>.
-          </p>
-        `;
-      }
-
       let total = portfolio.total_value_usd;
 
       const hideSmallBalances = hideSmall.checked;
