@@ -119,8 +119,19 @@ class PepuTracker extends HTMLElement {
 
     if (!isSigned) {
       this.historyContent.innerHTML = `
-        <p style="color:white;">✍️ This is a premium feature. Please sign a message with a wallet that holds at least 2M PBTC to unlock access.</p>
-        <button class="pepu-button" id="signAccessBtn">Sign to unlock</button>
+        <div style="text-align: center; color: white; font-family: 'Poppins', sans-serif; max-width: 700px; margin: auto;">
+          <h2 style="font-size: 26px; margin-bottom: 20px; color: #F1BC4A;">🔒 Premium Feature: Portfolio History</h2>
+          <p style="font-size: 17px; line-height: 1.6; margin-bottom: 25px; padding: 0 10px;">
+            This feature allows you to explore your historical portfolio value over time — including PEPU, L2 tokens, LPs, and presales.<br><br>
+            To unlock access, sign a message with a wallet that currently holds <strong>at least 2 million PBTC</strong>. Click the button below and follow the instructions in your wallet. <br><br>
+            On mobile only the MetaMask and TrustWallet browsers are currently supported.<br><br>
+            The data starts from the <strong>first time</strong> each wallet was checked after this feature was launched, and new data is logged every hour.<br><br>
+            If you use multiple wallets the chart will automatically combine them into a single portfolio, summing the values at each point in time.
+          </p>
+          <button id="signAccessBtn" class="pepu-button">
+            Sign to unlock
+          </button>
+        </div>
       `;
       setTimeout(() => {
         document.getElementById("signAccessBtn").onclick = async () => {
@@ -729,7 +740,7 @@ class PepuTracker extends HTMLElement {
 
     const message = `Access portfolio history for ${signatureData.address}`;
     const res = await fetch(
-      `https://pepu-portfolio-tracker-test.onrender.com/wallet-history?wallets=${wallets[0]}&message=${encodeURIComponent(message)}&signature=${encodeURIComponent(signatureData.signature)}`
+      `https://pepu-portfolio-tracker-test.onrender.com/wallet-history?wallets=${wallets.join(",")}&message=${encodeURIComponent(message)}&signature=${encodeURIComponent(signatureData.signature)}`
     );
 
     if (!res.ok) {
@@ -740,12 +751,96 @@ class PepuTracker extends HTMLElement {
     }
 
     const raw = await res.json();
-    const history = raw[wallets[0].toLowerCase()] || [];
+    const allHistories = wallets.map(w => raw[w.toLowerCase()] || []);
 
-    if (!Array.isArray(history) || history.length === 0) {
-      this.historyContent.innerHTML = `<p style="color:white;">No history data available for this wallet.</p>`;
+    if (!Array.isArray(allHistories) || allHistories.length === 0 || allHistories.every(h => !Array.isArray(h) || h.length === 0)) {
+      if (raw.error === "Minimum 2,000,000 PBTC required to view history.") {
+        this.historyContent.innerHTML = `
+          <div style="text-align: center; color: white; font-family: 'Poppins', sans-serif; max-width: 700px; margin: auto;">
+            <h2 style="font-size: 26px; margin-bottom: 20px; color: #F1BC4A;">🔒 Premium Feature: Portfolio History</h2>
+            <p style="font-size: 17px; line-height: 1.6; margin-bottom: 25px; padding: 0 10px;">
+              ⚠️ The connected wallet does not hold at least <strong>2,000,000 PBTC</strong>.
+              <br>Please either buy more PBTC or connect a different wallet that meets the requirement to unlock access.
+            </p>
+            <button id="signAccessBtn" class="pepu-button">
+              Sign to unlock
+            </button>
+          </div>
+          `;
+          setTimeout(() => {
+            document.getElementById("signAccessBtn").onclick = async () => {
+              if (!window.ethereum) {
+                alert("MetaMask is required.");
+                return;
+              }
+              const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+              const address = accounts[0];
+              const message = `Access portfolio history for ${address}`;
+              const signature = await window.ethereum.request({
+                method: "personal_sign",
+                params: [message, address],
+              });
+              localStorage.setItem("pepu_history_signature", JSON.stringify({ address, signature }));
+              alert("Signature saved. Reopen history modal to continue.");
+              this.querySelector("#historyModal").style.display = "none";
+            };
+          }, 100);
+          return;
+      } else {
+        this.historyContent.innerHTML = `
+          <div style="text-align: center; color: white; font-family: 'Poppins', sans-serif; max-width: 700px; margin: auto;">
+            <p style="font-size: 17px; line-height: 1.6; margin-bottom: 25px; padding: 0 10px;">No history data available for these wallets.</p>
+          </div>
+          `;
+      }
       return;
     }
+
+    // === Normalize and combine wallet histories ===
+    const roundToHour = ts => {
+      const d = new Date(ts);
+      d.setMinutes(0, 0, 0);
+      return d.toISOString();
+    };
+
+    // Step 1: Keep only first entry per hour for each wallet
+    const perWalletHourly = allHistories.map(entries => {
+      const seen = new Set();
+      const result = {};
+      for (const entry of entries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))) {
+        const hourKey = roundToHour(entry.timestamp);
+        if (!seen.has(hourKey)) {
+          result[hourKey] = { ...entry, timestamp: hourKey };
+          seen.add(hourKey);
+        }
+      }
+      return result;
+    });
+
+    // Step 2: Find all unique hourly keys
+    const allHours = Array.from(new Set(
+      perWalletHourly.flatMap(hist => Object.keys(hist))
+    )).sort();
+
+    // Step 3: Forward fill and sum
+    const lastVals = perWalletHourly.map(() => ({
+      pepu_usd: 0, l2_usd: 0, lp_usd: 0, presale_usd: 0
+    }));
+
+    const history = allHours.map(ts => {
+      let sum = { timestamp: ts, pepu_usd: 0, l2_usd: 0, lp_usd: 0, presale_usd: 0 };
+      perWalletHourly.forEach((walletHist, i) => {
+        if (walletHist[ts]) {
+          lastVals[i] = walletHist[ts];
+        }
+        sum.pepu_usd += lastVals[i].pepu_usd;
+        sum.l2_usd += lastVals[i].l2_usd;
+        sum.lp_usd += lastVals[i].lp_usd;
+        sum.presale_usd += lastVals[i].presale_usd;
+      });
+      return sum;
+    });
+
 
     this.historyContent.innerHTML = `
       <div style="display: flex; flex-direction: column; width: 100%; height: 100%;">
@@ -807,10 +902,13 @@ class PepuTracker extends HTMLElement {
       chart.update();
     };
 
+    if (window.Chart && window["chartjs-plugin-zoom"]) {
+      Chart.register(window["chartjs-plugin-zoom"]);
+    }
     const chart = new window.Chart(ctx, {
       type: "line",
       data: {
-        labels: history.map(d => new Date(d.timestamp).toLocaleString()),
+        labels: [],
         datasets: []
       },
       options: {
@@ -820,9 +918,7 @@ class PepuTracker extends HTMLElement {
           intersect: false,
         },
         elements: {
-          point: {
-            radius: 2
-          }
+          point: { radius: 2 }
         },
         plugins: {
           legend: {
@@ -861,12 +957,6 @@ class PepuTracker extends HTMLElement {
                 return `$${value.toLocaleString()}`;
               }
             },
-            title: {
-              display: false,
-              text: "USD",
-              color: "white",
-              font: { size: 14 }
-            },
             grid: { color: "rgba(255,255,255,0.1)" }
           }
         }
@@ -891,7 +981,6 @@ class PepuTracker extends HTMLElement {
       };
     });
   }
-
 
 }
 
