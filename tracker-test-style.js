@@ -609,5 +609,63 @@ export const trackerStyle = `
             position: relative;
             bottom: 8px;
         }
+
+        #historyModal .modal-chart {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #historyControls {
+            flex-direction: column !important;
+            gap: 15px !important;
+            padding: 15px !important;
+            align-items: stretch !important;
+        }
+
+        #historyControls .time-buttons {
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 2px !important;
+        }
+
+        #historyControls .filter-checkboxes {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px 2px !important;
+        }
+
+        #historyControls label.chart-filter {
+            width: 100%;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #historyControls-desktop {
+            display: none !important;
+        }
+
+        #historyControls-mobile {
+            display: flex !important;
+        }
+
+        .chart-range-btn {
+            font-size: 12px !important;
+            padding: 2px 4px !important;
+            min-width: 48px !important;
+        }
+
+        #signAccessBtn {
+            
+        }
+
     }
 `
